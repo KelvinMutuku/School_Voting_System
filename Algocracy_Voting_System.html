@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KITENGELA INTERNATIONAL SCHOOL JSS Algocracy eLECTIONS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+  <div class="container mx-auto p-4">
+    <header class="bg-blue-600 text-white p-4 rounded-lg shadow-md mb-6">
+      <h1 class="text-3xl font-bold text-center uppercase">KITENGELA INTERNATIONAL SCHOOL JSS<br>ALGOCRACY ELECTIONS</h1>
+      <nav class="mt-4">
+        <ul class="flex justify-center space-x-4">
+          <li><a href="#register" class="tab-link hover:underline" data-tab="register">Register</a></li>
+          <li><a href="#about" class="tab-link hover:underline" data-tab="about">About</a></li>
+          <li><a href="#vote" class="tab-link hover:underline" data-tab="vote">Vote</a></li>
+          <li><a href="#results" class="tab-link hover:underline" data-tab="results">Results</a></li>
+          <li><a href="#teacher" class="tab-link hover:underline" data-tab="teacher">Teacher</a></li>
+          <li><a href="#admin" class="tab-link hover:underline" data-tab="admin">Admin</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <section id="register" class="tab-content">
+        <h2 class="text-2xl font-semibold mb-4">Student Registration</h2>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+          <p class="mb-4">Enter your Student ID and a unique password to register.</p>
+          <div class="mb-4">
+            <label for="registerId" class="block text-gray-700 font-semibold">Student ID (KJS001–KJS057)</label>
+            <input type="text" id="registerId" class="w-full p-2 border rounded" placeholder="e.g., KJS001" oninput="showStudentName()">
+          </div>
+          <div class="mb-4">
+            <label for="registerName" class="block text-gray-700 font-semibold">Your Name</label>
+            <input type="text" id="registerName" class="w-full p-2 border rounded" readonly>
+          </div>
+          <div class="mb-4">
+            <label for="registerPassword" class="block text-gray-700 font-semibold">Password (min 6 characters)</label>
+            <input type="password" id="registerPassword" class="w-full p-2 border rounded" placeholder="Enter your password">
+          </div>
+          <div class="mb-4">
+            <label for="securityQuestion" class="block text-gray-700 font-semibold">Security Question</label>
+            <select id="securityQuestion" class="w-full p-2 border rounded">
+              <option value="">Select a security question</option>
+              <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
+              <option value="What is the name of your first pet?">What is the name of your first pet?</option>
+              <option value="What city were you born in?">What city were you born in?</option>
+            </select>
+          </div>
+          <div class="mb-4">
+            <label for="securityAnswer" class="block text-gray-700 font-semibold">Security Answer</label>
+            <input type="text" id="securityAnswer" class="w-full p-2 border rounded" placeholder="Enter your answer">
+          </div>
+          <button onclick="registerStudent()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Register</button>
+          <p id="registerError" class="text-red-500 mt-2 hidden"></p>
+          <p id="registerSuccess" class="text-green-500 mt-2 hidden">Registration successful!</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md mt-6">
+          <h3 class="text-xl font-semibold mb-4">Change Password</h3>
+          <div class="mb-4">
+            <label for="changeId" class="block text-gray-700 font-semibold">Student ID</label>
+            <input type="text" id="changeId" class="w-full p-2 border rounded" placeholder="e.g., KJS001">
+          </div>
+          <div class="mb-4">
+            <label for="oldPassword" class="block text-gray-700 font-semibold">Old Password</label>
+            <input type="password" id="oldPassword" class="w-full p-2 border rounded" placeholder="Enter old password">
+          </div>
+          <div class="mb-4">
+            <label for="newPassword" class="block text-gray-700 font-semibold">New Password (min 6 characters)</label>
+            <input type="password" id="newPassword" class="w-full p-2 border rounded" placeholder="Enter new password">
+          </div>
+          <button onclick="changePassword()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Change Password</button>
+          <p id="changeError" class="text-red-500 mt-2 hidden"></p>
+          <p id="changeSuccess" class="text-green-500 mt-2 hidden">Password changed successfully!</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md mt-6">
+          <h3 class="text-xl font-semibold mb-4">Reset Password</h3>
+          <div class="mb-4">
+            <label for="resetId" class="block text-gray-700 font-semibold">Student ID</label>
+            <input type="text" id="resetId" class="w-full p-2 border rounded" placeholder="e.g., KJS001" oninput="showSecurityQuestion()">
+          </div>
+          <div class="mb-4">
+            <label for="resetQuestion" class="block text-gray-700 font-semibold">Security Question</label>
+            <input type="text" id="resetQuestion" class="w-full p-2 border rounded" readonly>
+          </div>
+          <div class="mb-4">
+            <label for="resetAnswer" class="block text-gray-700 font-semibold">Security Answer</label>
+            <input type="text" id="resetAnswer" class="w-full p-2 border rounded" placeholder="Enter your answer">
+          </div>
+          <div class="mb-4">
+            <label for="resetNewPassword" class="block text-gray-700 font-semibold">New Password (min 6 characters)</label>
+            <input type="password" id="resetNewPassword" class="w-full p-2 border rounded" placeholder="Enter new password">
+          </div>
+          <button onclick="resetPassword()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Reset Password</button>
+          <p id="resetError" class="text-red-500 mt-2 hidden"></p>
+          <p id="resetSuccess" class="text-green-500 mt-2 hidden">Password reset successfully!</p>
+        </div>
+      </section>
+
+      <section id="about" class="tab-content hidden">
+        <h2 class="text-2xl font-semibold mb-4">Student Leaders – Algocracy System</h2>
+        <p class="mb-4">This platform blends student choice with merit using a clear, public formula. Student votes are combined with leadership and performance criteria to select the most suitable leaders.</p>
+        <div class="bg-white p-6 rounded-lg shadow-md mb-4">
+          <h3 class="text-xl font-semibold mb-2">Criteria & Weights (Total 100%)</h3>
+          <p class="mb-2">These weights can be adjusted by Admin (with a PIN). Default model:</p>
+          <ul class="list-disc ml-6">
+            <li>Student Votes 30%</li>
+            <li>Academics 15%</li>
+            <li>Discipline 10%</li>
+            <li>Clubs 10%</li>
+            <li>Community Service 5%</li>
+            <li>Teacher 10%</li>
+            <li>Leadership 10%</li>
+            <li>Public Speaking 10%</li>
+          </ul>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+          <h3 class="text-xl font-semibold mb-2">How it works</h3>
+          <ul class="list-disc ml-6 mb-4">
+            <li>Students register with their ID and password, then vote by position.</li>
+            <li>Teachers record each student's metric scores (0–100).</li>
+            <li>The system computes Final Score per candidate:</li>
+          </ul>
+          <p class="font-mono text-center mb-4">Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd + Clubs%×Wc + CommunityService%×Wcs + Teacher%×Wt + Leadership%×Wl + PublicSpeaking%×Wp</p>
+          <p>Highest Final Score wins each position. Transparent & reproducible.</p>
+        </div>
+      </section>
+
+      <section id="vote" class="tab-content hidden">
+        <h2 class="text-2xl font-semibold mb-4">Cast Your Vote</h2>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+          <div class="mb-4">
+            <label for="voterId" class="block text-gray-700 font-semibold">Student ID</label>
+            <input type="text" id="voterId" class="w-full p-2 border rounded" placeholder="e.g., KJS001" oninput="validateVoter()" required>
+          </div>
+          <div class="mb-4">
+            <label for="voterPassword" class="block text-gray-700 font-semibold">Password</label>
+            <input type="password" id="voterPassword" class="w-full p-2 border rounded" placeholder="Enter your password" oninput="validateVoter()" required>
+          </div>
+          <div class="mb-4">
+            <label for="voterName" class="block text-gray-700 font-semibold">Name</label>
+            <input type="text" id="voterName" class="w-full p-2 border rounded" readonly>
+          </div>
+          <div class="mb-4">
+            <label for="voterGrade" class="block text-gray-700 font-semibold">Grade</label>
+            <input type="text" id="voterGrade" class="w-full p-2 border rounded" readonly>
+          </div>
+          <div class="mb-4">
+            <label for="voterClass" class="block text-gray-700 font-semibold">Class</label>
+            <input type="text" id="voterClass" class="w-full p-2 border rounded" readonly>
+          </div>
+          <div id="votePositions" class="mb-4"></div>
+          <button onclick="submitVote()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Submit Vote</button>
+          <p id="voteError" class="text-red-500 mt-2 hidden"></p>
+          <p class="text-sm text-gray-500 mt-2">Your ID is hashed in-browser. We do not store names or passwords.</p>
+        </div>
+        <div id="tallyResults" class="mt-6 bg-white p-4 rounded-lg shadow-md hidden">
+          <h3 class="text-xl font-semibold mb-2">Live Vote Tally</h3>
+          <div id="tallyContainer" class="grid grid-cols-2 gap-4"></div>
+        </div>
+      </section>
+
+      <section id="results" class="tab-content hidden">
+        <h2 class="text-2xl font-semibold mb-4">Computed Results (Student Votes + Criteria)</h2>
+        <p class="mb-4">Teachers enter metric scores in the Teacher tab. Student Votes% are calculated automatically from cast votes per position.</p>
+        <div id="resultsTable" class="bg-white p-4 rounded-lg shadow-md"></div>
+        <button onclick="exportResults()" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Export Results (CSV)</button>
+      </section>
+
+      <section id="teacher" class="tab-content hidden">
+        <h2 class="text-2xl font-semibold mb-4">Teacher Input</h2>
+        <div class="bg-white p-6 rounded-lg shadow-md mb-4">
+          <p class="mb-4">Enter your username and password to log in.</p>
+          <div class="mb-4">
+            <label for="teacherUsername" class="block text-gray-700 font-semibold">Username (e.g., teacher7blue)</label>
+            <input type="text" id="teacherUsername" class="w-full p-2 border rounded" placeholder="Enter username">
+          </div>
+          <div class="mb-4">
+            <label for="teacherPassword" class="block text-gray-700 font-semibold">Password</label>
+            <input type="password" id="teacherPassword" class="w-full p-2 border rounded" placeholder="Enter password">
+          </div>
+          <button onclick="loginTeacher()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Log In</button>
+          <p id="teacherLoginError" class="text-red-500 mt-2 hidden">Invalid username or password.</p>
+        </div>
+        <div id="teacherForm" class="hidden bg-white p-6 rounded-lg shadow-md">
+          <h3 class="text-xl font-semibold mb-2">Enter Metrics for Your Class (0–100)</h3>
+          <p class="mb-4">Below are the students in your class. Enter scores for each metric.</p>
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="bg-gray-100">
+                <th class="border p-2 text-left">Student</th>
+                <th class="border p-2 text-right">Academics</th>
+                <th class="border p-2 text-right">Discipline</th>
+                <th class="border p-2 text-right">Clubs</th>
+                <th class="border p-2 text-right">Community Service</th>
+                <th class="border p-2 text-right">Teacher</th>
+                <th class="border p-2 text-right">Leadership</th>
+                <th class="border p-2 text-right">Public Speaking</th>
+              </tr>
+            </thead>
+            <tbody id="teacherMetricsTable"></tbody>
+          </table>
+          <button onclick="saveTeacherMetrics()" class="mt-4 w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Save Metrics</button>
+          <p id="teacherSaveStatus" class="text-green-500 mt-2 hidden">Metrics saved successfully!</p>
+          <p id="teacherSaveError" class="text-red-500 mt-2 hidden">Please fill all fields with valid scores (0–100).</p>
+        </div>
+        <div id="teacherChangePassword" class="hidden bg-white p-6 rounded-lg shadow-md mt-6">
+          <h3 class="text-xl font-semibold mb-4">Change Password</h3>
+          <div class="mb-4">
+            <label for="teacherOldPassword" class="block text-gray-700 font-semibold">Old Password</label>
+            <input type="password" id="teacherOldPassword" class="w-full p-2 border rounded" placeholder="Enter old password">
+          </div>
+          <div class="mb-4">
+            <label for="teacherNewPassword" class="block text-gray-700 font-semibold">New Password (min 6 characters)</label>
+            <input type="password" id="teacherNewPassword" class="w-full p-2 border rounded" placeholder="Enter new password">
+          </div>
+          <button onclick="changeTeacherPassword()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Change Password</button>
+          <p id="teacherChangeError" class="text-red-500 mt-2 hidden"></p>
+          <p id="teacherChangeSuccess" class="text-green-500 mt-2 hidden">Password changed successfully!</p>
+        </div>
+        <div id="teacherResetPassword" class="hidden bg-white p-6 rounded-lg shadow-md mt-6">
+          <h3 class="text-xl font-semibold mb-4">Reset Password</h3>
+          <div class="mb-4">
+            <label for="teacherResetUsername" class="block text-gray-700 font-semibold">Username</label>
+            <input type="text" id="teacherResetUsername" class="w-full p-2 border rounded" placeholder="e.g., teacher7blue" oninput="showTeacherSecurityQuestion()">
+          </div>
+          <div class="mb-4">
+            <label for="teacherResetQuestion" class="block text-gray-700 font-semibold">Security Question</label>
+            <input type="text" id="teacherResetQuestion" class="w-full p-2 border rounded" readonly>
+          </div>
+          <div class="mb-4">
+            <label for="teacherResetAnswer" class="block text-gray-700 font-semibold">Security Answer</label>
+            <input type="text" id="teacherResetAnswer" class="w-full p-2 border rounded" placeholder="Enter your answer">
+          </div>
+          <div class="mb-4">
+            <label for="teacherResetNewPassword" class="block text-gray-700 font-semibold">New Password (min 6 characters)</label>
+            <input type="password" id="teacherResetNewPassword" class="w-full p-2 border rounded" placeholder="Enter new password">
+          </div>
+          <button onclick="resetTeacherPassword()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Reset Password</button>
+          <p id="teacherResetError" class="text-red-500 mt-2 hidden"></p>
+          <p id="teacherResetSuccess" class="text-green-500 mt-2 hidden">Password reset successfully!</p>
+        </div>
+        <div id="teacherStudentManagement" class="hidden bg-white p-6 rounded-lg shadow-md mt-6">
+          <h3 class="text-xl font-semibold mb-4">Manage Students in Your Class</h3>
+          <div class="mb-4">
+            <label for="studentIdManage" class="block text-gray-700 font-semibold">Student ID</label>
+            <input type="text" id="studentIdManage" class="w-full p-2 border rounded" placeholder="e.g., KJS001">
+          </div>
+          <div class="mb-4">
+            <label for="studentNameManage" class="block text-gray-700 font-semibold">Student Name</label>
+            <input type="text" id="studentNameManage" class="w-full p-2 border rounded" placeholder="e.g., sevenblue1">
+          </div>
+          <div class="flex gap-2 mb-4">
+            <button onclick="addStudentToClass()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add Student to Class</button>
+            <button onclick="removeStudentFromClass()" class="w-full bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Remove Student from Class</button>
+          </div>
+          <p id="studentManageError" class="text-red-500 mt-2 hidden"></p>
+          <p id="studentManageSuccess" class="text-green-500 mt-2 hidden"></p>
+          <button onclick="clearAllStudents()" class="w-full bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 mt-4">Clear All Students</button>
+        </div>
+      </section>
+
+      <section id="admin" class="tab-content hidden">
+        <h2 class="text-2xl font-semibold mb-4">Admin Login</h2>
+        <div class="bg-white p-6 rounded-lg shadow-md mb-4">
+          <p class="mb-4">Default PIN is 1234. Change it below once logged in.</p>
+          <div class="mb-4">
+            <label for="adminPin" class="block text-gray-700 font-semibold">Enter PIN</label>
+            <input type="password" id="adminPin" class="w-full p-2 border rounded" placeholder="Enter PIN">
+          </div>
+          <button onclick="unlockAdmin()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Unlock Admin</button>
+          <button onclick="factoryReset()" class="mt-2 w-full bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Factory Reset (wipe data)</button>
+          <p id="adminPinError" class="text-red-500 mt-2 hidden">Invalid PIN.</p>
+        </div>
+        <div id="adminForm" class="hidden">
+          <div class="bg-white p-6 rounded-lg shadow-md mb-4">
+            <h3 class="text-xl font-semibold mb-2">Voting Control</h3>
+            <button onclick="toggleVoting()" id="votingToggleBtn" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"></button>
+            <p id="votingStatus" class="text-gray-500 mt-2"></p>
+          </div>
+          <div class="bg-white p-6 rounded-lg shadow-md mb-4">
+            <h3 class="text-xl font-semibold mb-2">Positions & Candidates</h3>
+            <div class="mb-4">
+              <label for="newPosition" class="block text-gray-700 font-semibold">New Position</label>
+              <input type="text" id="newPosition" class="w-full p-2 border rounded" placeholder="e.g., School President">
+              <button onclick="addPosition()" class="mt-2 w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add Position</button>
+            </div>
+            <div class="mb-4">
+              <h4 class="text-lg font-semibold mb-2">Manage Candidates</h4>
+              <div class="flex flex-col gap-2">
+                <label for="candidatePosition" class="block text-gray-700 font-semibold">Select Position</label>
+                <select id="candidatePosition" class="w-full p-2 border rounded" onchange="updateCandidateList()">
+                  <option value="">Select a position</option>
+                </select>
+                <label for="candidateId" class="block text-gray-700 font-semibold">Student ID (KJS001–KJS057)</label>
+                <input type="text" id="candidateId" class="w-full p-2 border rounded" placeholder="e.g., KJS001">
+                <div class="flex gap-2">
+                  <button onclick="addCandidate()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add Candidate</button>
+                  <button onclick="removeCandidate()" class="w-full bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Remove Candidate</button>
+                </div>
+                <p id="candidateError" class="text-red-500 mt-2 hidden"></p>
+                <p id="candidateSuccess" class="text-green-500 mt-2 hidden"></p>
+              </div>
+              <div id="candidateList" class="mt-4"></div>
+            </div>
+            <div id="positionList"></div>
+            <button onclick="clearAllCandidates()" class="mt-4 w-full bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Clear All Candidates</button>
+          </div>
+          <div class="bg-white p-6 rounded-lg shadow-md mb-4">
+            <h3 class="text-xl font-semibold mb-2">Manage Teachers</h3>
+            <div class="mb-4">
+              <label for="newTeacher" class="block text-gray-700 font-semibold">Add Teacher (Username, Grade, Class, Password)</label>
+              <input type="text" id="newTeacher" class="w-full p-2 border rounded" placeholder="e.g., teacher7blue,7,Blue,1234">
+              <button onclick="addTeacher()" class="mt-2 w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add Teacher</button>
+            </div>
+            <div id="teacherList"></div>
+          </div>
+          <div class="bg-white p-6 rounded-lg shadow-md mb-4">
+            <h3 class="text-xl font-semibold mb-2">Weights (0–100 total)</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="weightStudentVotes" class="block text-gray-700">Student Votes (%)</label>
+                <input type="number" id="weightStudentVotes" min="0" max="100" class="w-full p-2 border rounded" value="30" required>
+              </div>
+              <div>
+                <label for="weightAcademics" class="block text-gray-700">Academics (%)</label>
+                <input type="number" id="weightAcademics" min="0" max="100" class="w-full p-2 border rounded" value="15" required>
+              </div>
+              <div>
+                <label for="weightDiscipline" class="block text-gray-700">Discipline (%)</label>
+                <input type="number" id="weightDiscipline" min="0" max="100" class="w-full p-2 border rounded" value="10" required>
+              </div>
+              <div>
+                <label for="weightClubs" class="block text-gray-700">Clubs (%)</label>
+                <input type="number" id="weightClubs" min="0" max="100" class="w-full p-2 border rounded" value="10" required>
+              </div>
+              <div>
+                <label for="weightCommunityService" class="block text-gray-700">Community Service (%)</label>
+                <input type="number" id="weightCommunityService" min="0" max="100" class="w-full p-2 border rounded" value="5" required>
+              </div>
+              <div>
+                <label for="weightTeacher" class="block text-gray-700">Teacher (%)</label>
+                <input type="number" id="weightTeacher" min="0" max="100" class="w-full p-2 border rounded" value="10" required>
+              </div>
+              <div>
+                <label for="weightLeadership" class="block text-gray-700">Leadership (%)</label>
+                <input type="number" id="weightLeadership" min="0" max="100" class="w-full p-2 border rounded" value="10" required>
+              </div>
+              <div>
+                <label for="weightPublicSpeaking" class="block text-gray-700">Public Speaking (%)</label>
+                <input type="number" id="weightPublicSpeaking" min="0" max="100" class="w-full p-2 border rounded" value="10" required>
+              </div>
+            </div>
+            <button onclick="saveWeights()" class="mt-4 w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Save Weights</button>
+            <p id="weightsError" class="text-red-500 mt-2 hidden">Weights must total 100%.</p>
+          </div>
+          <div class="bg-white p-6 rounded-lg shadow-md mb-4">
+            <h3 class="text-xl font-semibold mb-2">Security & Data</h3>
+            <div class="mb-4">
+              <label for="newPin" class="block text-gray-700 font-semibold">Change PIN</label>
+              <input type="password" id="newPin" class="w-full p-2 border rounded" placeholder="Enter new PIN">
+              <button onclick="updatePin()" class="mt-2 w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Update PIN</button>
+            </div>
+            <button onclick="exportVotes()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Export Votes (CSV)</button>
+            <button onclick="downloadBackup()" class="mt-2 w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Download Backup (JSON)</button>
+            <div class="mt-2">
+              <label for="importBackup" class="block text-gray-700 font-semibold">Import Backup</label>
+              <input type="file" id="importBackup" accept=".json" class="w-full p-2 border rounded">
+              <button onclick="importBackup()" class="mt-2 w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Import Backup</button>
+            </div>
+            <p class="text-sm text-gray-500 mt-2">Tip: To connect this page to Google Sheets, publish a Google Apps Script as a Web App and change VOTE_ENDPOINT in the source. The page will still work offline via localStorage.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mt-6 text-center text-gray-500">
+      <p>Built for transparency & learning by KISC JUNIOR SCHOOL STEM CLUB</p>
+    </footer>
+  </div>
+
+  <script>
+    const VOTE_ENDPOINT = "";
+    const classes = {
+      7: ["Blue", "Red", "Green", "Yellow", "Pink", "Magenta"],
+      8: ["Blue", "Red", "Green", "Yellow", "Pink", "Magenta"],
+      9: ["Blue", "Red", "Green", "Yellow", "Pink", "Magenta", "Purple"]
+    };
+
+    let teachers = JSON.parse(localStorage.getItem("teachers")) || [
+      { username: "teacher7blue", password: "1234", grade: 7, class: "Blue", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher7red", password: "1234", grade: 7, class: "Red", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher7green", password: "1234", grade: 7, class: "Green", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher7yellow", password: "1234", grade: 7, class: "Yellow", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher7pink", password: "1234", grade: 7, class: "Pink", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher7magenta", password: "1234", grade: 7, class: "Magenta", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher8blue", password: "1234", grade: 8, class: "Blue", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher8red", password: "1234", grade: 8, class: "Red", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher8green", password: "1234", grade: 8, class: "Green", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher8yellow", password: "1234", grade: 8, class: "Yellow", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher8pink", password: "1234", grade: 8, class: "Pink", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher8magenta", password: "1234", grade: 8, class: "Magenta", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher9blue", password: "1234", grade: 9, class: "Blue", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher9red", password: "1234", grade: 9, class: "Red", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher9green", password: "1234", grade: 9, class: "Green", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher9yellow", password: "1234", grade: 9, class: "Yellow", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher9pink", password: "1234", grade: 9, class: "Pink", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher9magenta", password: "1234", grade: 9, class: "Magenta", securityQuestion: "", securityAnswer: "" },
+      { username: "teacher9purple", password: "1234", grade: 9, class: "Purple", securityQuestion: "", securityAnswer: "" }
+    ];
+
+    let students = JSON.parse(localStorage.getItem("students")) || generateStudents();
+
+    function generateStudents() {
+      const students = [];
+      let studentCounter = 1;
+      Object.entries(classes).forEach(([grade, classList]) => {
+        classList.forEach(cls => {
+          for (let i = 1; i <= 3; i++) {
+            const name = `${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}${i}`;
+            const id = `KJS${String(studentCounter).padStart(3, "0")}`;
+            const gender = i % 2 === 0 ? "M" : "F";
+            students.push({
+              name: name,
+              id: id,
+              password: "1234",
+              grade: parseInt(grade),
+              class: cls,
+              gender: gender,
+              securityQuestion: "",
+              securityAnswer: ""
+            });
+            studentCounter++;
+          }
+        });
+      });
+      return students;
+    }
+
+    let positions = JSON.parse(localStorage.getItem("positions")) || generatePositionsWithCandidates();
+
+    function generatePositionsWithCandidates() {
+      const positions = [
+        { name: "School President", scope: "school", candidates: ["sevenblue1", "eightred1", "ninegreen1"] },
+        { name: "Governor_Grade_7", scope: "grade_7", candidates: ["sevenblue1", "sevenred1", "sevengreen1"] },
+        { name: "Senator_Grade_7", scope: "grade_7", candidates: ["sevenyellow1", "sevenpink1", "sevenmagenta1"] },
+        { name: "Girl_Representative_Grade_7", scope: "grade_7", candidates: ["sevenblue3", "sevenred3", "sevengreen3"] },
+        { name: "Governor_Grade_8", scope: "grade_8", candidates: ["eightblue1", "eightred1", "eightgreen1"] },
+        { name: "Senator_Grade_8", scope: "grade_8", candidates: ["eightyellow1", "eightpink1", "eightmagenta1"] },
+        { name: "Girl_Representative_Grade_8", scope: "grade_8", candidates: ["eightblue3", "eightred3", "eightgreen3"] },
+        { name: "Governor_Grade_9", scope: "grade_9", candidates: ["nineblue1", "ninered1", "ninegreen1"] },
+        { name: "Senator_Grade_9", scope: "grade_9", candidates: ["nineyellow1", "ninepink1", "ninemagenta1"] },
+        { name: "Girl_Representative_Grade_9", scope: "grade_9", candidates: ["nineblue3", "ninered3", "ninegreen3"] },
+        ...Object.entries(classes).flatMap(([grade, classList]) => 
+          classList.flatMap(cls => [
+            {
+              name: `MCA_Grade_${grade}_${cls}`, 
+              scope: `grade_${grade}_class_${cls.toLowerCase()}`, 
+              candidates: [`${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}1`, 
+                           `${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}2`, 
+                           `${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}3`]
+            },
+            {
+              name: `${grade} ${cls} MP`, 
+              scope: `grade_${grade}_class_${cls.toLowerCase()}`, 
+              candidates: [`${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}1`, 
+                           `${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}2`, 
+                           `${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}3`]
+            }
+          ])
+        )
+      ].filter((p, i, arr) => arr.findIndex(p2 => p2.name === p.name) === i);
+      return positions;
+    }
+
+    let votes = JSON.parse(localStorage.getItem("votes")) || {};
+    let metrics = JSON.parse(localStorage.getItem("metrics")) || {};
+    let weights = JSON.parse(localStorage.getItem("weights")) || {
+      studentVotes: 30,
+      academics: 15,
+      discipline: 10,
+      clubs: 10,
+      communityService: 5,
+      teacher: 10,
+      leadership: 10,
+      publicSpeaking: 10
+    };
+    let pin = localStorage.getItem("pin") || "1234";
+    let votingOpen = JSON.parse(localStorage.getItem("votingOpen")) !== false;
+
+    function showTab(tabId) {
+      document.querySelectorAll(".tab-content").forEach(tab => tab.classList.add("hidden"));
+      document.getElementById(tabId).classList.remove("hidden");
+      document.querySelectorAll(".tab-link").forEach(link => link.classList.remove("font-bold"));
+      document.querySelector(`[data-tab="${tabId}"]`).classList.add("font-bold");
+      if (tabId === "admin") updateAdminForm();
+      if (tabId === "results") computeResults();
+      updateTallyDisplay();
+    }
+
+    document.querySelectorAll(".tab-link").forEach(link => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        showTab(e.target.dataset.tab);
+      });
+    });
+
+    function showStudentName() {
+      const id = document.getElementById("registerId").value.trim().toUpperCase();
+      const student = students.find(s => s.id === id);
+      const registerName = document.getElementById("registerName");
+      if (student) {
+        registerName.value = student.name;
+      } else {
+        registerName.value = "";
+      }
+    }
+
+    function registerStudent() {
+      const id = document.getElementById("registerId").value.trim().toUpperCase();
+      const password = document.getElementById("registerPassword").value;
+      const question = document.getElementById("securityQuestion").value;
+      const answer = document.getElementById("securityAnswer").value;
+      const registerError = document.getElementById("registerError");
+      const registerSuccess = document.getElementById("registerSuccess");
+
+      if (!id.match(/^KJS[0-4][0-9]{2}$|^KJS057$/)) {
+        registerError.textContent = "Invalid ID format. Use KJS001 to KJS057.";
+        registerError.classList.remove("hidden");
+        registerSuccess.classList.add("hidden");
+        return;
+      }
+
+      const student = students.find(s => s.id === id);
+      if (!student) {
+        registerError.textContent = "Student ID not found.";
+        registerError.classList.remove("hidden");
+        registerSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (student.password !== "1234") {
+        registerError.textContent = "This ID is already registered.";
+        registerError.classList.remove("hidden");
+        registerSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (password.length < 6) {
+        registerError.textContent = "Password must be at least 6 characters.";
+        registerError.classList.remove("hidden");
+        registerSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (!question || !answer) {
+        registerError.textContent = "Security question and answer are required.";
+        registerError.classList.remove("hidden");
+        registerSuccess.classList.add("hidden");
+        return;
+      }
+
+      student.password = password;
+      student.securityQuestion = question;
+      student.securityAnswer = answer;
+      localStorage.setItem("students", JSON.stringify(students));
+      document.getElementById("registerId").value = "";
+      document.getElementById("registerPassword").value = "";
+      document.getElementById("registerName").value = "";
+      document.getElementById("securityQuestion").value = "";
+      document.getElementById("securityAnswer").value = "";
+      registerError.classList.add("hidden");
+      registerSuccess.classList.remove("hidden");
+      setTimeout(() => registerSuccess.classList.add("hidden"), 2000);
+    }
+
+    function changePassword() {
+      const id = document.getElementById("changeId").value.trim().toUpperCase();
+      const oldPassword = document.getElementById("oldPassword").value;
+      const newPassword = document.getElementById("newPassword").value;
+      const changeError = document.getElementById("changeError");
+      const changeSuccess = document.getElementById("changeSuccess");
+
+      const student = students.find(s => s.id === id);
+      if (!student) {
+        changeError.textContent = "Student ID not found.";
+        changeError.classList.remove("hidden");
+        changeSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (student.password !== oldPassword) {
+        changeError.textContent = "Incorrect old password.";
+        changeError.classList.remove("hidden");
+        changeSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        changeError.textContent = "New password must be at least 6 characters.";
+        changeError.classList.remove("hidden");
+        changeSuccess.classList.add("hidden");
+        return;
+      }
+
+      student.password = newPassword;
+      localStorage.setItem("students", JSON.stringify(students));
+      document.getElementById("changeId").value = "";
+      document.getElementById("oldPassword").value = "";
+      document.getElementById("newPassword").value = "";
+      changeError.classList.add("hidden");
+      changeSuccess.classList.remove("hidden");
+      setTimeout(() => changeSuccess.classList.add("hidden"), 2000);
+    }
+
+    function showSecurityQuestion() {
+      const id = document.getElementById("resetId").value.trim().toUpperCase();
+      const student = students.find(s => s.id === id);
+      const resetQuestion = document.getElementById("resetQuestion");
+      if (student && student.securityQuestion) {
+        resetQuestion.value = student.securityQuestion;
+      } else {
+        resetQuestion.value = "";
+      }
+    }
+
+    function resetPassword() {
+      const id = document.getElementById("resetId").value.trim().toUpperCase();
+      const answer = document.getElementById("resetAnswer").value;
+      const newPassword = document.getElementById("resetNewPassword").value;
+      const resetError = document.getElementById("resetError");
+      const resetSuccess = document.getElementById("resetSuccess");
+
+      const student = students.find(s => s.id === id);
+      if (!student) {
+        resetError.textContent = "Student ID not found.";
+        resetError.classList.remove("hidden");
+        resetSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (student.securityAnswer !== answer) {
+        resetError.textContent = "Incorrect security answer.";
+        resetError.classList.remove("hidden");
+        resetSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        resetError.textContent = "New password must be at least 6 characters.";
+        resetError.classList.remove("hidden");
+        resetSuccess.classList.add("hidden");
+        return;
+      }
+
+      student.password = newPassword;
+      localStorage.setItem("students", JSON.stringify(students));
+      document.getElementById("resetId").value = "";
+      document.getElementById("resetAnswer").value = "";
+      document.getElementById("resetNewPassword").value = "";
+      document.getElementById("resetQuestion").value = "";
+      resetError.classList.add("hidden");
+      resetSuccess.classList.remove("hidden");
+      setTimeout(() => resetSuccess.classList.add("hidden"), 2000);
+    }
+
+    function validateVoter() {
+      const voterId = document.getElementById("voterId").value.trim().toUpperCase();
+      const voterPassword = document.getElementById("voterPassword").value;
+      const voterName = document.getElementById("voterName");
+      const voterGrade = document.getElementById("voterGrade");
+      const voterClass = document.getElementById("voterClass");
+      const votePositions = document.getElementById("votePositions");
+      const voteError = document.getElementById("voteError");
+
+      votePositions.innerHTML = "";
+      voterName.value = "";
+      voterGrade.value = "";
+      voterClass.value = "";
+
+      const voter = students.find(s => s.id === voterId && s.password === voterPassword);
+      if (voter) {
+        voterName.value = voter.name;
+        voterGrade.value = voter.grade;
+        voterClass.value = voter.class;
+        voteError.classList.add("hidden");
+        updatePositionDropdown(voter);
+      } else {
+        voteError.textContent = "Invalid Student ID or Password.";
+        voteError.classList.remove("hidden");
+      }
+    }
+
+    function updatePositionDropdown(voter) {
+      const grade = voter.grade;
+      const cls = voter.class.toLowerCase();
+      const votePositions = document.getElementById("votePositions");
+      const relevantPositions = positions.filter(p => 
+        p.scope === "school" || 
+        p.scope === `grade_${grade}` || 
+        p.scope === `grade_${grade}_class_${cls}`
+      );
+      votePositions.innerHTML = relevantPositions.map(p => `
+        <div class="mb-4 flex items-center">
+          <label class="w-1/3 text-gray-700 font-semibold">${p.name.replace(/_/g, ' ')}</label>
+          <select id="voteCandidate_${p.name}" class="w-2/3 p-2 border rounded">
+            <option value="">Select a candidate</option>
+            ${p.candidates.filter(c => c !== voter.name).map(c => `<option value="${c}">${c}</option>`).join("")}
+          </select>
+        </div>
+      `).join("");
+    }
+
+    function submitVote() {
+      const voterId = document.getElementById("voterId").value.trim().toUpperCase();
+      const voterPassword = document.getElementById("voterPassword").value;
+      const voteError = document.getElementById("voteError");
+
+      if (!votingOpen) {
+        voteError.textContent = "Voting is closed.";
+        voteError.classList.remove("hidden");
+        return;
+      }
+
+      const voter = students.find(s => s.id === voterId && s.password === voterPassword);
+      if (!voter) {
+        voteError.textContent = "Invalid Student ID or Password.";
+        voteError.classList.remove("hidden");
+        return;
+      }
+
+      const grade = voter.grade;
+      const cls = voter.class.toLowerCase();
+      const relevantPositions = positions.filter(p => 
+        p.scope === "school" || 
+        p.scope === `grade_${grade}` || 
+        p.scope === `grade_${grade}_class_${cls}`
+      );
+
+      const hash = btoa(voterId);
+      let hasError = false;
+      let votesSubmitted = 0;
+
+      relevantPositions.forEach(p => {
+        const candidate = document.getElementById(`voteCandidate_${p.name}`).value;
+        if (candidate) {
+          if (p.name.includes("Girl_Representative") && students.find(s => s.name === candidate)?.gender !== "F") {
+            voteError.textContent = `Only female candidates can be selected for ${p.name.replace(/_/g, ' ')}.`;
+            voteError.classList.remove("hidden");
+            hasError = true;
+            return;
+          }
+
+          if (localStorage.getItem(`vote_${hash}_${p.name}`)) {
+            voteError.textContent = `You have already voted for ${p.name.replace(/_/g, ' ')}.`;
+            voteError.classList.remove("hidden");
+            hasError = true;
+            return;
+          }
+
+          localStorage.setItem(`vote_${hash}_${p.name}`, candidate);
+          if (!votes[p.name]) votes[p.name] = {};
+          votes[p.name][candidate] = (votes[p.name][candidate] || 0) + 1;
+          votesSubmitted++;
+        }
+      });
+
+      if (hasError) {
+        return;
+      }
+
+      if (votesSubmitted === 0) {
+        voteError.textContent = "Please select at least one candidate.";
+        voteError.classList.remove("hidden");
+        return;
+      }
+
+      localStorage.setItem("votes", JSON.stringify(votes));
+
+      if (VOTE_ENDPOINT) {
+        relevantPositions.forEach(p => {
+          const candidate = document.getElementById(`voteCandidate_${p.name}`).value;
+          if (candidate) {
+            fetch(VOTE_ENDPOINT, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ position: p.name, candidate, voterId: hash })
+            }).catch(error => console.error("Error sending vote to endpoint:", error));
+          }
+        });
+      }
+
+      alert("Votes submitted successfully!");
+      voteError.classList.add("hidden");
+      document.getElementById("voterId").value = "";
+      document.getElementById("voterPassword").value = "";
+      document.getElementById("voterName").value = "";
+      document.getElementById("voterGrade").value = "";
+      document.getElementById("voterClass").value = "";
+      document.getElementById("votePositions").innerHTML = "";
+      updateTallyDisplay();
+    }
+
+    function loginTeacher() {
+      const username = document.getElementById("teacherUsername").value.trim();
+      const password = document.getElementById("teacherPassword").value;
+      const teacherLoginError = document.getElementById("teacherLoginError");
+
+      const teacher = teachers.find(t => t.username === username && t.password === password);
+      if (teacher) {
+        document.getElementById("teacherForm").classList.remove("hidden");
+        document.getElementById("teacherChangePassword").classList.remove("hidden");
+        document.getElementById("teacherResetPassword").classList.remove("hidden");
+        document.getElementById("teacherStudentManagement").classList.remove("hidden");
+        updateTeacherMetricsTable(teacher);
+        teacherLoginError.classList.add("hidden");
+      } else {
+        teacherLoginError.textContent = "Invalid username or password.";
+        teacherLoginError.classList.remove("hidden");
+      }
+    }
+
+    function updateTeacherMetricsTable(teacher) {
+      const tableBody = document.getElementById("teacherMetricsTable");
+      const classStudents = students.filter(s => s.grade === teacher.grade && s.class === teacher.class);
+      tableBody.innerHTML = classStudents.map(s => {
+        const m = metrics[s.name] || {};
+        return `
+          <tr>
+            <td class="border p-2"><span title="ID: ${s.id}">${s.name}</span></td>
+            <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_academics" value="${m.academics || ''}"></td>
+            <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_discipline" value="${m.discipline || ''}"></td>
+            <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_clubs" value="${m.clubs || ''}"></td>
+            <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_communityService" value="${m.communityService || ''}"></td>
+            <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_teacher" value="${m.teacher || ''}"></td>
+            <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_leadership" value="${m.leadership || ''}"></td>
+            <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_publicSpeaking" value="${m.publicSpeaking || ''}"></td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function saveTeacherMetrics() {
+      const tableBody = document.getElementById("teacherMetricsTable");
+      const teacher = teachers.find(t => t.username === document.getElementById("teacherUsername").value.trim());
+      const classStudents = students.filter(s => s.grade === teacher.grade && s.class === teacher.class);
+      let hasInvalid = false;
+
+      classStudents.forEach(s => {
+        const academics = parseInt(document.getElementById(`metric_${s.name}_academics`).value);
+        const discipline = parseInt(document.getElementById(`metric_${s.name}_discipline`).value);
+        const clubs = parseInt(document.getElementById(`metric_${s.name}_clubs`).value);
+        const communityService = parseInt(document.getElementById(`metric_${s.name}_communityService`).value);
+        const teacherScore = parseInt(document.getElementById(`metric_${s.name}_teacher`).value);
+        const leadership = parseInt(document.getElementById(`metric_${s.name}_leadership`).value);
+        const publicSpeaking = parseInt(document.getElementById(`metric_${s.name}_publicSpeaking`).value);
+
+        if (!isNaN(academics) || !isNaN(discipline) || !isNaN(clubs) || !isNaN(communityService) || !isNaN(teacherScore) || !isNaN(leadership) || !isNaN(publicSpeaking)) {
+          if (isNaN(academics) || isNaN(discipline) || isNaN(clubs) || isNaN(communityService) || isNaN(teacherScore) || isNaN(leadership) || isNaN(publicSpeaking) ||
+              academics < 0 || academics > 100 || discipline < 0 || discipline > 100 || clubs < 0 || clubs > 100 ||
+              communityService < 0 || communityService > 100 || teacherScore < 0 || teacherScore > 100 || leadership < 0 || leadership > 100 ||
+              publicSpeaking < 0 || publicSpeaking > 100) {
+            hasInvalid = true;
+            return;
+          }
+          metrics[s.name] = { academics, discipline, clubs, communityService, teacher: teacherScore, leadership, publicSpeaking };
+        }
+      });
+
+      if (hasInvalid) {
+        document.getElementById("teacherSaveError").classList.remove("hidden");
+        return;
+      }
+
+      localStorage.setItem("metrics", JSON.stringify(metrics));
+      document.getElementById("teacherSaveError").classList.add("hidden");
+      document.getElementById("teacherSaveStatus").classList.remove("hidden");
+      setTimeout(() => document.getElementById("teacherSaveStatus").classList.add("hidden"), 2000);
+      computeResults();
+    }
+
+    function changeTeacherPassword() {
+      const username = document.getElementById("teacherUsername").value.trim();
+      const oldPassword = document.getElementById("teacherOldPassword").value;
+      const newPassword = document.getElementById("teacherNewPassword").value;
+      const changeError = document.getElementById("teacherChangeError");
+      const changeSuccess = document.getElementById("teacherChangeSuccess");
+
+      const teacher = teachers.find(t => t.username === username);
+      if (!teacher) {
+        changeError.textContent = "Teacher not found.";
+        changeError.classList.remove("hidden");
+        changeSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (teacher.password !== oldPassword) {
+        changeError.textContent = "Incorrect old password.";
+        changeError.classList.remove("hidden");
+        changeSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        changeError.textContent = "New password must be at least 6 characters.";
+        changeError.classList.remove("hidden");
+        changeSuccess.classList.add("hidden");
+        return;
+      }
+
+      teacher.password = newPassword;
+      localStorage.setItem("teachers", JSON.stringify(teachers));
+      document.getElementById("teacherOldPassword").value = "";
+      document.getElementById("teacherNewPassword").value = "";
+      changeError.classList.add("hidden");
+      changeSuccess.classList.remove("hidden");
+      setTimeout(() => changeSuccess.classList.add("hidden"), 2000);
+    }
+
+    function showTeacherSecurityQuestion() {
+      const username = document.getElementById("teacherResetUsername").value.trim();
+      const teacher = teachers.find(t => t.username === username);
+      const resetQuestion = document.getElementById("teacherResetQuestion");
+      if (teacher && teacher.securityQuestion) {
+        resetQuestion.value = teacher.securityQuestion;
+      } else {
+        resetQuestion.value = "";
+      }
+    }
+
+    function resetTeacherPassword() {
+      const username = document.getElementById("teacherResetUsername").value.trim();
+      const answer = document.getElementById("teacherResetAnswer").value;
+      const newPassword = document.getElementById("teacherResetNewPassword").value;
+      const resetError = document.getElementById("teacherResetError");
+      const resetSuccess = document.getElementById("teacherResetSuccess");
+
+      const teacher = teachers.find(t => t.username === username);
+      if (!teacher) {
+        resetError.textContent = "Teacher not found.";
+        resetError.classList.remove("hidden");
+        resetSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (teacher.securityAnswer !== answer) {
+        resetError.textContent = "Incorrect security answer.";
+        resetError.classList.remove("hidden");
+        resetSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        resetError.textContent = "New password must be at least 6 characters.";
+        resetError.classList.remove("hidden");
+        resetSuccess.classList.add("hidden");
+        return;
+      }
+
+      teacher.password = newPassword;
+      localStorage.setItem("teachers", JSON.stringify(teachers));
+      document.getElementById("teacherResetUsername").value = "";
+      document.getElementById("teacherResetAnswer").value = "";
+      document.getElementById("teacherResetNewPassword").value = "";
+      document.getElementById("teacherResetQuestion").value = "";
+      resetError.classList.add("hidden");
+      resetSuccess.classList.remove("hidden");
+      setTimeout(() => resetSuccess.classList.add("hidden"), 2000);
+    }
+
+    function addStudentToClass() {
+      const teacherUsername = document.getElementById("teacherUsername").value.trim();
+      const studentId = document.getElementById("studentIdManage").value.trim().toUpperCase();
+      const studentName = document.getElementById("studentNameManage").value.trim();
+      const studentManageError = document.getElementById("studentManageError");
+      const studentManageSuccess = document.getElementById("studentManageSuccess");
+
+      const teacher = teachers.find(t => t.username === teacherUsername);
+      if (!teacher) {
+        studentManageError.textContent = "Teacher not logged in.";
+        studentManageError.classList.remove("hidden");
+        studentManageSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (!studentId.match(/^KJS[0-4][0-9]{2}$|^KJS057$/)) {
+        studentManageError.textContent = "Invalid ID format. Use KJS001 to KJS057.";
+        studentManageError.classList.remove("hidden");
+        studentManageSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (!studentName) {
+        studentManageError.textContent = "Student name is required.";
+        studentManageError.classList.remove("hidden");
+        studentManageSuccess.classList.add("hidden");
+        return;
+      }
+
+      const existingStudent = students.find(s => s.id === studentId || s.name === studentName);
+      if (existingStudent) {
+        studentManageError.textContent = "Student ID or name already exists.";
+        studentManageError.classList.remove("hidden");
+        studentManageSuccess.classList.add("hidden");
+        return;
+      }
+
+      const newStudent = {
+        name: studentName,
+        id: studentId,
+        password: "1234",
+        grade: teacher.grade,
+        class: teacher.class,
+        gender: "U",
+        securityQuestion: "",
+        securityAnswer: ""
+      };
+
+      students.push(newStudent);
+      localStorage.setItem("students", JSON.stringify(students));
+      updateTeacherMetricsTable(teacher);
+      document.getElementById("studentIdManage").value = "";
+      document.getElementById("studentNameManage").value = "";
+      studentManageError.classList.add("hidden");
+      studentManageSuccess.textContent = "Student added successfully!";
+      studentManageSuccess.classList.remove("hidden");
+      setTimeout(() => studentManageSuccess.classList.add("hidden"), 2000);
+    }
+
+    function removeStudentFromClass() {
+      const teacherUsername = document.getElementById("teacherUsername").value.trim();
+      const studentId = document.getElementById("studentIdManage").value.trim().toUpperCase();
+      const studentManageError = document.getElementById("studentManageError");
+      const studentManageSuccess = document.getElementById("studentManageSuccess");
+
+      const teacher = teachers.find(t => t.username === teacherUsername);
+      if (!teacher) {
+        studentManageError.textContent = "Teacher not logged in.";
+        studentManageError.classList.remove("hidden");
+        studentManageSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (!studentId.match(/^KJS[0-4][0-9]{2}$|^KJS057$/)) {
+        studentManageError.textContent = "Invalid ID format. Use KJS001 to KJS057.";
+        studentManageError.classList.remove("hidden");
+        studentManageSuccess.classList.add("hidden");
+        return;
+      }
+
+      const studentIndex = students.findIndex(s => s.id === studentId && s.grade === teacher.grade && s.class === teacher.class);
+      if (studentIndex === -1) {
+        studentManageError.textContent = "Student not found in this class.";
+        studentManageError.classList.remove("hidden");
+        studentManageSuccess.classList.add("hidden");
+        return;
+      }
+
+      const student = students[studentIndex];
+      positions.forEach(p => {
+        p.candidates = p.candidates.filter(c => c !== student.name);
+      });
+      delete metrics[student.name];
+      students.splice(studentIndex, 1);
+      localStorage.setItem("students", JSON.stringify(students));
+      localStorage.setItem("positions", JSON.stringify(positions));
+      localStorage.setItem("metrics", JSON.stringify(metrics));
+      updateTeacherMetricsTable(teacher);
+      document.getElementById("studentIdManage").value = "";
+      document.getElementById("studentNameManage").value = "";
+      studentManageError.classList.add("hidden");
+      studentManageSuccess.textContent = "Student removed successfully!";
+      studentManageSuccess.classList.remove("hidden");
+      setTimeout(() => studentManageSuccess.classList.add("hidden"), 2000);
+      computeResults();
+    }
+
+    function clearAllStudents() {
+      if (!confirm("Are you sure you want to clear all students? This will remove all student data and cannot be undone.")) {
+        return;
+      }
+
+      students = generateStudents();
+      metrics = {};
+      positions = generatePositionsWithCandidates();
+      votes = {};
+      localStorage.setItem("students", JSON.stringify(students));
+      localStorage.setItem("metrics", JSON.stringify(metrics));
+      localStorage.setItem("positions", JSON.stringify(positions));
+      localStorage.setItem("votes", JSON.stringify(votes));
+      const teacher = teachers.find(t => t.username === document.getElementById("teacherUsername").value.trim());
+      if (teacher) {
+        updateTeacherMetricsTable(teacher);
+      }
+      document.getElementById("studentManageSuccess").textContent = "All students cleared and reset.";
+      document.getElementById("studentManageSuccess").classList.remove("hidden");
+      setTimeout(() => document.getElementById("studentManageSuccess").classList.add("hidden"), 2000);
+      computeResults();
+    }
+
+    function unlockAdmin() {
+      const enteredPin = document.getElementById("adminPin").value;
+      if (enteredPin === pin) {
+        document.getElementById("adminForm").classList.remove("hidden");
+        document.getElementById("adminPinError").classList.add("hidden");
+        document.getElementById("votingToggleBtn").textContent = votingOpen ? "Close Voting" : "Open Voting";
+        document.getElementById("votingStatus").textContent = votingOpen ? "Voting is open." : "Voting is closed. Tallies are visible.";
+        updateAdminForm();
+      } else {
+        document.getElementById("adminPinError").classList.remove("hidden");
+      }
+    }
+
+    function updateAdminForm() {
+      updatePositionListAdmin();
+      updateTeacherListAdmin();
+      updateCandidateList();
+      document.getElementById("weightStudentVotes").value = weights.studentVotes;
+      document.getElementById("weightAcademics").value = weights.academics;
+      document.getElementById("weightDiscipline").value = weights.discipline;
+      document.getElementById("weightClubs").value = weights.clubs;
+      document.getElementById("weightCommunityService").value = weights.communityService;
+      document.getElementById("weightTeacher").value = weights.teacher;
+      document.getElementById("weightLeadership").value = weights.leadership;
+      document.getElementById("weightPublicSpeaking").value = weights.publicSpeaking;
+    }
+
+    function addPosition() {
+      const newPosition = document.getElementById("newPosition").value.trim();
+      if (newPosition) {
+        positions.push({ name: newPosition, scope: "school", candidates: [] });
+        localStorage.setItem("positions", JSON.stringify(positions));
+        document.getElementById("newPosition").value = "";
+        updatePositionListAdmin();
+        updateCandidateList();
+        alert("Position added successfully!");
+      } else {
+        alert("Please enter a position name.");
+      }
+    }
+
+    function updatePositionListAdmin() {
+      const positionList = document.getElementById("positionList");
+      positionList.innerHTML = positions.map(p => `
+        <div class="flex justify-between items-center p-2 border-b">
+          <span>${p.name.replace(/_/g, ' ')}</span>
+          <button onclick="removePosition('${p.name}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Remove</button>
+        </div>
+      `).join("");
+      const candidatePosition = document.getElementById("candidatePosition");
+      candidatePosition.innerHTML = `<option value="">Select a position</option>` + 
+        positions.map(p => `<option value="${p.name}">${p.name.replace(/_/g, ' ')}</option>`).join("");
+    }
+
+    function removePosition(positionName) {
+      positions = positions.filter(p => p.name !== positionName);
+      delete votes[positionName];
+      localStorage.setItem("positions", JSON.stringify(positions));
+      localStorage.setItem("votes", JSON.stringify(votes));
+      updatePositionListAdmin();
+      updateCandidateList();
+      computeResults();
+    }
+
+    function addTeacher() {
+      const input = document.getElementById("newTeacher").value.trim();
+      const [username, grade, cls, password] = input.split(",");
+      if (username && grade && cls && password) {
+        const validGrade = Object.keys(classes).includes(grade);
+        const validClass = classes[grade]?.includes(cls);
+        if (!validGrade || !validClass) {
+          alert("Invalid grade or class.");
+          return;
+        }
+        if (teachers.find(t => t.username === username)) {
+          alert("Teacher username already exists.");
+          return;
+        }
+        teachers.push({ username, password, grade: parseInt(grade), class: cls, securityQuestion: "", securityAnswer: "" });
+        localStorage.setItem("teachers", JSON.stringify(teachers));
+        document.getElementById("newTeacher").value = "";
+        updateTeacherListAdmin();
+        alert("Teacher added successfully!");
+      } else {
+        alert("Please enter username, grade, class, and password (e.g., teacher7blue,7,Blue,1234).");
+      }
+    }
+
+    function updateTeacherListAdmin() {
+      const teacherList = document.getElementById("teacherList");
+      teacherList.innerHTML = teachers.map(t => `
+        <div class="flex justify-between items-center p-2 border-b">
+          <span>${t.username} (Grade ${t.grade} ${t.class})</span>
+          <button onclick="removeTeacher('${t.username}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Remove</button>
+        </div>
+      `).join("");
+    }
+
+    function removeTeacher(username) {
+      teachers = teachers.filter(t => t.username !== username);
+      localStorage.setItem("teachers", JSON.stringify(teachers));
+      updateTeacherListAdmin();
+    }
+
+    function updateCandidateList() {
+      const positionName = document.getElementById("candidatePosition").value;
+      const candidateList = document.getElementById("candidateList");
+      const position = positions.find(p => p.name === positionName);
+      if (position) {
+        candidateList.innerHTML = `
+          <h4 class="text-lg font-semibold mb-2">Candidates for ${position.name.replace(/_/g, ' ')}</h4>
+          ${position.candidates.length > 0 ? position.candidates.map(c => `
+            <div class="flex justify-between items-center p-2 border-b">
+              <span>${c} (${students.find(s => s.name === c)?.id})</span>
+            </div>
+          `).join("") : "<p>No candidates yet.</p>"}
+        `;
+      } else {
+        candidateList.innerHTML = "<p>Select a position to view candidates.</p>";
+      }
+    }
+
+    function addCandidate() {
+      const positionName = document.getElementById("candidatePosition").value;
+      const studentId = document.getElementById("candidateId").value.trim().toUpperCase();
+      const candidateError = document.getElementById("candidateError");
+      const candidateSuccess = document.getElementById("candidateSuccess");
+
+      if (!positionName) {
+        candidateError.textContent = "Please select a position.";
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (!studentId.match(/^KJS[0-4][0-9]{2}$|^KJS057$/)) {
+        candidateError.textContent = "Invalid ID format. Use KJS001 to KJS057.";
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      const student = students.find(s => s.id === studentId);
+      if (!student) {
+        candidateError.textContent = "Student ID not found.";
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      const position = positions.find(p => p.name === positionName);
+      if (!position) {
+        candidateError.textContent = "Position not found.";
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (position.name.includes("Girl_Representative") && student.gender !== "F") {
+        candidateError.textContent = "Only female students can be candidates for Girl Representative positions.";
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (position.scope !== "school" && !position.scope.includes(`grade_${student.grade}`)) {
+        candidateError.textContent = `Student must be in grade ${position.scope.split('_')[1]} to be a candidate for this position.`;
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (position.scope.includes("class") && !position.scope.includes(`class_${student.class.toLowerCase()}`)) {
+        candidateError.textContent = `Student must be in class ${position.scope.split('_')[3]} to be a candidate for this position.`;
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (position.candidates.includes(student.name)) {
+        candidateError.textContent = "Student is already a candidate for this position.";
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      position.candidates.push(student.name);
+      localStorage.setItem("positions", JSON.stringify(positions));
+document.getElementById("candidateId").value = "";
+      candidateError.classList.add("hidden");
+      candidateSuccess.textContent = "Candidate added successfully!";
+      candidateSuccess.classList.remove("hidden");
+      setTimeout(() => candidateSuccess.classList.add("hidden"), 2000);
+      updateCandidateList();
+    }
+
+    function removeCandidate() {
+      const positionName = document.getElementById("candidatePosition").value;
+      const studentId = document.getElementById("candidateId").value.trim().toUpperCase();
+      const candidateError = document.getElementById("candidateError");
+      const candidateSuccess = document.getElementById("candidateSuccess");
+
+      if (!positionName) {
+        candidateError.textContent = "Please select a position.";
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      if (!studentId.match(/^KJS[0-4][0-9]{2}$|^KJS057$/)) {
+        candidateError.textContent = "Invalid ID format. Use KJS001 to KJS057.";
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      const student = students.find(s => s.id === studentId);
+      if (!student) {
+        candidateError.textContent = "Student ID not found.";
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      const position = positions.find(p => p.name === positionName);
+      if (!position) {
+        candidateError.textContent = "Position not found.";
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      const candidateIndex = position.candidates.indexOf(student.name);
+      if (candidateIndex === -1) {
+        candidateError.textContent = "Student is not a candidate for this position.";
+        candidateError.classList.remove("hidden");
+        candidateSuccess.classList.add("hidden");
+        return;
+      }
+
+      position.candidates.splice(candidateIndex, 1);
+      localStorage.setItem("positions", JSON.stringify(positions));
+      document.getElementById("candidateId").value = "";
+      candidateError.classList.add("hidden");
+      candidateSuccess.textContent = "Candidate removed successfully!";
+      candidateSuccess.classList.remove("hidden");
+      setTimeout(() => candidateSuccess.classList.add("hidden"), 2000);
+      updateCandidateList();
+    }
+
+    function clearAllCandidates() {
+      if (!confirm("Are you sure you want to clear all candidates? This cannot be undone.")) {
+        return;
+      }
+
+      positions.forEach(p => p.candidates = []);
+      localStorage.setItem("positions", JSON.stringify(positions));
+      updateCandidateList();
+      updatePositionListAdmin();
+      alert("All candidates cleared.");
+    }
+
+    function toggleVoting() {
+      votingOpen = !votingOpen;
+      localStorage.setItem("votingOpen", JSON.stringify(votingOpen));
+      document.getElementById("votingToggleBtn").textContent = votingOpen ? "Close Voting" : "Open Voting";
+      document.getElementById("votingStatus").textContent = votingOpen ? "Voting is open." : "Voting is closed. Tallies are visible.";
+      updateTallyDisplay();
+    }
+
+    function updateTallyDisplay() {
+      const tallyResults = document.getElementById("tallyResults");
+      const tallyContainer = document.getElementById("tallyContainer");
+      if (!votingOpen) {
+        tallyResults.classList.remove("hidden");
+        tallyContainer.innerHTML = positions.map(p => {
+          const voteCounts = votes[p.name] || {};
+          const totalVotes = Object.values(voteCounts).reduce((sum, count) => sum + count, 0);
+          return `
+            <div class="bg-gray-100 p-4 rounded">
+              <h4 class="font-semibold">${p.name.replace(/_/g, ' ')}</h4>
+              ${p.candidates.map(c => `
+                <div class="flex justify-between">
+                  <span>${c}</span>
+                  <span>${voteCounts[c] || 0} votes (${totalVotes ? ((voteCounts[c] || 0) / totalVotes * 100).toFixed(1) : 0}%) ${totalVotes ? createBar((voteCounts[c] || 0) / totalVotes * 100) : ''}</span>
+                </div>
+              `).join("")}
+            </div>
+          `;
+        }).join("");
+      } else {
+        tallyResults.classList.add("hidden");
+      }
+    }
+
+    function createBar(percentage) {
+      return `
+        <div class="w-full bg-gray-200 rounded h-4 mt-1">
+          <div class="bg-blue-500 h-4 rounded" style="width: ${percentage}%"></div>
+        </div>
+      `;
+    }
+
+    function saveWeights() {
+      const studentVotes = parseInt(document.getElementById("weightStudentVotes").value);
+      const academics = parseInt(document.getElementById("weightAcademics").value);
+      const discipline = parseInt(document.getElementById("weightDiscipline").value);
+      const clubs = parseInt(document.getElementById("weightClubs").value);
+      const communityService = parseInt(document.getElementById("weightCommunityService").value);
+      const teacher = parseInt(document.getElementById("weightTeacher").value);
+      const leadership = parseInt(document.getElementById("weightLeadership").value);
+      const publicSpeaking = parseInt(document.getElementById("weightPublicSpeaking").value);
+
+      const total = studentVotes + academics + discipline + clubs + communityService + teacher + leadership + publicSpeaking;
+      if (total !== 100 || isNaN(total)) {
+        document.getElementById("weightsError").classList.remove("hidden");
+        return;
+      }
+
+      weights = { studentVotes, academics, discipline, clubs, communityService, teacher, leadership, publicSpeaking };
+      localStorage.setItem("weights", JSON.stringify(weights));
+      document.getElementById("weightsError").classList.add("hidden");
+      alert("Weights saved successfully!");
+      computeResults();
+    }
+
+    function computeResults() {
+      const resultsTable = document.getElementById("resultsTable");
+      resultsTable.innerHTML = positions.map(p => {
+        const voteCounts = votes[p.name] || {};
+        const totalVotes = Object.values(voteCounts).reduce((sum, count) => sum + count, 0);
+        const scores = p.candidates.map(c => {
+          const m = metrics[c] || {};
+          const voteScore = totalVotes ? (voteCounts[c] || 0) / totalVotes * 100 : 0;
+          const finalScore = (
+            (voteScore * weights.studentVotes) +
+            ((m.academics || 0) * weights.academics) +
+            ((m.discipline || 0) * weights.discipline) +
+            ((m.clubs || 0) * weights.clubs) +
+            ((m.communityService || 0) * weights.communityService) +
+            ((m.teacher || 0) * weights.teacher) +
+            ((m.leadership || 0) * weights.leadership) +
+            ((m.publicSpeaking || 0) * weights.publicSpeaking)
+          ) / 100;
+          return { candidate: c, voteScore, finalScore, metrics: m };
+        });
+        scores.sort((a, b) => b.finalScore - a.finalScore);
+        return `
+          <div class="mb-4">
+            <h3 class="text-lg font-semibold">${p.name.replace(/_/g, ' ')}</h3>
+            <table class="w-full border-collapse">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="border p-2">Candidate</th>
+                  <th class="border p-2">Student Votes</th>
+                  <th class="border p-2">Academics</th>
+                  <th class="border p-2">Discipline</th>
+                  <th class="border p-2">Clubs</th>
+                  <th class="border p-2">Comm. Service</th>
+                  <th class="border p-2">Teacher</th>
+                  <th class="border p-2">Leadership</th>
+                  <th class="border p-2">Public Speaking</th>
+                  <th class="border p-2">Final Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${scores.map(s => `
+                  <tr>
+                    <td class="border p-2">${s.candidate} (${students.find(st => st.name === s.candidate)?.id})</td>
+                    <td class="border p-2 text-right">${s.voteScore.toFixed(1)}%</td>
+                    <td class="border p-2 text-right">${s.metrics.academics || '-'}</td>
+                    <td class="border p-2 text-right">${s.metrics.discipline || '-'}</td>
+                    <td class="border p-2 text-right">${s.metrics.clubs || '-'}</td>
+                    <td class="border p-2 text-right">${s.metrics.communityService || '-'}</td>
+                    <td class="border p-2 text-right">${s.metrics.teacher || '-'}</td>
+                    <td class="border p-2 text-right">${s.metrics.leadership || '-'}</td>
+                    <td class="border p-2 text-right">${s.metrics.publicSpeaking || '-'}</td>
+                    <td class="border p-2 text-right">${s.finalScore.toFixed(1)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function exportResults() {
+      const csv = ["Position,Candidate,Student Votes,Academics,Discipline,Clubs,Community Service,Teacher,Leadership,Public Speaking,Final Score"];
+      positions.forEach(p => {
+        const voteCounts = votes[p.name] || {};
+        const totalVotes = Object.values(voteCounts).reduce((sum, count) => sum + count, 0);
+        p.candidates.forEach(c => {
+          const m = metrics[c] || {};
+          const voteScore = totalVotes ? (voteCounts[c] || 0) / totalVotes * 100 : 0;
+          const finalScore = (
+            (voteScore * weights.studentVotes) +
+            ((m.academics || 0) * weights.academics) +
+            ((m.discipline || 0) * weights.discipline) +
+            ((m.clubs || 0) * weights.clubs) +
+            ((m.communityService || 0) * weights.communityService) +
+            ((m.teacher || 0) * weights.teacher) +
+            ((m.leadership || 0) * weights.leadership) +
+            ((m.publicSpeaking || 0) * weights.publicSpeaking)
+          ) / 100;
+          csv.push(`${p.name.replace(/_/g, ' ')},${c} (${students.find(s => s.name === c)?.id}),${voteScore.toFixed(1)}%,${m.academics || '-'},${m.discipline || '-'},${m.clubs || '-'},${m.communityService || '-'},${m.teacher || '-'},${m.leadership || '-'},${m.publicSpeaking || '-'},${finalScore.toFixed(1)}`);
+        });
+      });
+      const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "election_results.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportVotes() {
+      const csv = ["Position,Voter Hash,Candidate"];
+      Object.keys(votes).forEach(position => {
+        Object.keys(votes[position]).forEach(candidate => {
+          const count = votes[position][candidate];
+          for (let i = 0; i < count; i++) {
+            csv.push(`${position.replace(/_/g, ' ')},anonymous,${candidate}`);
+          }
+        });
+      });
+      const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "votes_export.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function updatePin() {
+      const newPin = document.getElementById("newPin").value;
+      if (newPin.length < 4) {
+        alert("PIN must be at least 4 characters.");
+        return;
+      }
+      pin = newPin;
+      localStorage.setItem("pin", pin);
+      document.getElementById("newPin").value = "";
+      alert("PIN updated successfully!");
+    }
+
+    function downloadBackup() {
+      const backup = { students, teachers, positions, votes, metrics, weights, pin, votingOpen };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "election_backup.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importBackup() {
+      const fileInput = document.getElementById("importBackup");
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Please select a file to import.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          students = data.students || generateStudents();
+          teachers = data.teachers || [];
+          positions = data.positions || generatePositionsWithCandidates();
+          votes = data.votes || {};
+          metrics = data.metrics || {};
+          weights = data.weights || {
+            studentVotes: 30,
+            academics: 15,
+            discipline: 10,
+            clubs: 10,
+            communityService: 5,
+            teacher: 10,
+            leadership: 10,
+            publicSpeaking: 10
+          };
+          pin = data.pin || "1234";
+          votingOpen = data.votingOpen !== false;
+          localStorage.setItem("students", JSON.stringify(students));
+          localStorage.setItem("teachers", JSON.stringify(teachers));
+          localStorage.setItem("positions", JSON.stringify(positions));
+          localStorage.setItem("votes", JSON.stringify(votes));
+          localStorage.setItem("metrics", JSON.stringify(metrics));
+          localStorage.setItem("weights", JSON.stringify(weights));
+          localStorage.setItem("pin", pin);
+          localStorage.setItem("votingOpen", JSON.stringify(votingOpen));
+          updateAdminForm();
+          computeResults();
+          updateTallyDisplay();
+          alert("Backup imported successfully!");
+        } catch (error) {
+          alert("Invalid backup file.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function factoryReset() {
+      if (!confirm("Are you sure you want to reset all data? This cannot be undone.")) {
+        return;
+      }
+      students = generateStudents();
+      teachers = [
+        { username: "teacher7blue", password: "1234", grade: 7, class: "Blue", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher7red", password: "1234", grade: 7, class: "Red", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher7green", password: "1234", grade: 7, class: "Green", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher7yellow", password: "1234", grade: 7, class: "Yellow", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher7pink", password: "1234", grade: 7, class: "Pink", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher7magenta", password: "1234", grade: 7, class: "Magenta", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher8blue", password: "1234", grade: 8, class: "Blue", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher8red", password: "1234", grade: 8, class: "Red", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher8green", password: "1234", grade: 8, class: "Green", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher8yellow", password: "1234", grade: 8, class: "Yellow", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher8pink", password: "1234", grade: 8, class: "Pink", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher8magenta", password: "1234", grade: 8, class: "Magenta", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher9blue", password: "1234", grade: 9, class: "Blue", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher9red", password: "1234", grade: 9, class: "Red", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher9green", password: "1234", grade: 9, class: "Green", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher9yellow", password: "1234", grade: 9, class: "Yellow", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher9pink", password: "1234", grade: 9, class: "Pink", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher9magenta", password: "1234", grade: 9, class: "Magenta", securityQuestion: "", securityAnswer: "" },
+        { username: "teacher9purple", password: "1234", grade: 9, class: "Purple", securityQuestion: "", securityAnswer: "" }
+      ];
+      positions = generatePositionsWithCandidates();
+      votes = {};
+      metrics = {};
+      weights = {
+        studentVotes: 30,
+        academics: 15,
+        discipline: 10,
+        clubs: 10,
+        communityService: 5,
+        teacher: 10,
+        leadership: 10,
+        publicSpeaking: 10
+      };
+      pin = "1234";
+      votingOpen = true;
+      localStorage.setItem("students", JSON.stringify(students));
+      localStorage.setItem("teachers", JSON.stringify(teachers));
+      localStorage.setItem("positions", JSON.stringify(positions));
+      localStorage.setItem("votes", JSON.stringify(votes));
+      localStorage.setItem("metrics", JSON.stringify(metrics));
+      localStorage.setItem("weights", JSON.stringify(weights));
+      localStorage.setItem("pin", pin);
+      localStorage.setItem("votingOpen", JSON.stringify(votingOpen));
+      document.getElementById("adminForm").classList.add("hidden");
+      document.getElementById("adminPin").value = "";
+      updateAdminForm();
+      computeResults();
+      updateTallyDisplay();
+      alert("System reset to factory settings.");
+    }
+
+    // Initialize the page
+    showTab("register");
+    updateTallyDisplay();
+  </script>
+</body>
+</html>
