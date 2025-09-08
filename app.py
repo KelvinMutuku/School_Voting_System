@@ -60,6 +60,14 @@ def init_db():
             )
         ''')
 
+        # Weights table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS weights (
+                name TEXT PRIMARY KEY,
+                value INTEGER NOT NULL
+            )
+        ''')
+
         # Seed initial data
         seed_data(conn)
 
@@ -96,6 +104,17 @@ def seed_data(conn):
         cursor.execute("INSERT INTO settings (name, value) VALUES (?, ?)", ('pin', '1234'))
         cursor.execute("INSERT INTO settings (name, value) VALUES (?, ?)", ('voting_open', 'True'))
         st.success("Default settings seeded.")
+
+    # Seed weights
+    cursor.execute("SELECT COUNT(*) FROM weights")
+    if cursor.fetchone()[0] == 0:
+        weights_data = [
+            ('student_votes', 30), ('academics', 15), ('discipline', 10),
+            ('clubs', 10), ('community_service', 5), ('teacher', 10),
+            ('leadership', 10), ('public_speaking', 10)
+        ]
+        cursor.executemany("INSERT INTO weights (name, value) VALUES (?, ?)", weights_data)
+        st.success("Default weights seeded.")
     
     conn.commit()
 
@@ -124,7 +143,11 @@ def fetch_data():
         cursor.execute("SELECT name, value FROM settings")
         settings = {row[0]: row[1] for row in cursor.fetchall()}
 
-    return students, teachers, positions, votes, settings
+        # Fetch weights
+        cursor.execute("SELECT name, value FROM weights")
+        weights = {row[0]: row[1] for row in cursor.fetchall()}
+
+    return students, teachers, positions, votes, settings, weights
 
 # --- 2. UI and Logic Functions ---
 def render_about_page():
@@ -173,7 +196,6 @@ def render_registration_page():
                 st.error("Please fill in all fields.")
             else:
                 try:
-                    # CORRECTED: Used bcrypt.hashpw instead of bcrypt.hash
                     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                     with sqlite3.connect(DB_FILE) as conn:
                         cursor = conn.cursor()
@@ -207,7 +229,6 @@ def render_registration_page():
                     result = cursor.fetchone()
                     
                     if result and bcrypt.checkpw(current_password.encode('utf-8'), result[0].encode('utf-8')):
-                        # CORRECTED: Used bcrypt.hashpw instead of bcrypt.hash
                         hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                         cursor.execute("UPDATE students SET password = ? WHERE student_id = ?", (hashed_new_password, change_id))
                         conn.commit()
@@ -256,7 +277,6 @@ def render_registration_page():
                                 answer_result = cursor.fetchone()
                                 
                                 if answer_result and answer_result[0].lower() == security_answer.lower():
-                                    # CORRECTED: Used bcrypt.hashpw instead of bcrypt.hash
                                     hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                                     cursor.execute("UPDATE students SET password = ? WHERE student_id = ?", (hashed_new_password, reset_id))
                                     conn.commit()
@@ -265,7 +285,6 @@ def render_registration_page():
                                     st.error("Incorrect security answer.")
                         except Exception as e:
                             st.error(f"An error occurred during password reset: {e}")
-
 
 def render_teacher_page(teachers, students):
     st.header("Teacher Login")
@@ -296,62 +315,10 @@ def render_teacher_page(teachers, students):
             else:
                 st.error("Invalid username or password.")
 
-def render_admin_page(settings, students, votes):
+def render_admin_page(settings, students, positions, votes, teachers, weights):
     st.header("Admin Panel")
     
-    if st.session_state.get('logged_in_admin'):
-        st.success("Admin access granted.")
-        
-        voting_open_str = settings.get('voting_open', 'True')
-        current_voting_status = "Open" if voting_open_str == 'True' else "Closed"
-        
-        st.subheader("Manage Voting")
-        st.markdown(f"**Current Status:** `{current_voting_status}`")
-        if st.button("Toggle Voting Status"):
-            new_status = 'False' if voting_open_str == 'True' else 'True'
-            with sqlite3.connect(DB_FILE) as conn:
-                conn.execute("UPDATE settings SET value = ? WHERE name = 'voting_open'", (new_status,))
-                conn.commit()
-            st.success("Voting status updated.")
-            st.rerun()
-
-        st.subheader("Update Admin PIN")
-        with st.form("update_pin_form"):
-            new_pin = st.text_input("New PIN", type="password")
-            submitted = st.form_submit_button("Update PIN")
-            if submitted:
-                with sqlite3.connect(DB_FILE) as conn:
-                    conn.execute("UPDATE settings SET value = ? WHERE name = 'pin'", (new_pin,))
-                    conn.commit()
-                st.success("PIN updated successfully!")
-                st.rerun()
-                
-        st.subheader("System Management")
-        
-        votes_df = pd.DataFrame.from_dict(votes, orient='index')
-        csv_file = votes_df.to_csv(index=True, header=True)
-        st.download_button(
-            label="Export Votes (CSV)",
-            data=csv_file,
-            file_name="algocracy_votes.csv",
-            mime="text/csv",
-        )
-
-        if st.button("Reset System (DANGER ZONE)", help="This will delete all student data and votes."):
-            if st.checkbox("Confirm Reset"):
-                with sqlite3.connect(DB_FILE) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("DELETE FROM students")
-                    cursor.execute("DELETE FROM votes")
-                    conn.commit()
-                st.success("System reset successfully.")
-                st.rerun()
-
-        if st.button("Logout"):
-            st.session_state.logged_in_admin = False
-            st.rerun()
-
-    else:
+    if not st.session_state.get('logged_in_admin'):
         pin = st.text_input("Enter Admin PIN", type="password")
         if st.button("Login"):
             if pin == settings.get('pin'):
@@ -359,6 +326,177 @@ def render_admin_page(settings, students, votes):
                 st.rerun()
             else:
                 st.error("Invalid PIN.")
+        return
+
+    st.success("Admin access granted.")
+
+    # --- Voting Control ---
+    st.subheader("Voting Control")
+    voting_open_str = settings.get('voting_open', 'True')
+    current_voting_status = "Open" if voting_open_str == 'True' else "Closed"
+    st.markdown(f"**Current Status:** `{current_voting_status}`")
+    if st.button("Toggle Voting Status"):
+        new_status = 'False' if voting_open_str == 'True' else 'True'
+        with sqlite3.connect(DB_FILE) as conn:
+            conn.execute("UPDATE settings SET value = ? WHERE name = 'voting_open'", (new_status,))
+            conn.commit()
+        st.success("Voting status updated.")
+        st.rerun()
+
+    st.markdown("---")
+
+    # --- Positions & Candidates ---
+    st.subheader("Positions & Candidates")
+    with st.form("add_position_form"):
+        new_position_name = st.text_input("New Position Name")
+        add_position_submitted = st.form_submit_button("Add Position")
+        if add_position_submitted and new_position_name:
+            with sqlite3.connect(DB_FILE) as conn:
+                conn.execute("INSERT INTO positions (position_name, candidates_json) VALUES (?, ?)", (new_position_name, json.dumps([])))
+                conn.commit()
+            st.success(f"Position '{new_position_name}' added.")
+            st.rerun()
+
+    st.markdown("---")
+
+    # --- Manage Candidates ---
+    st.subheader("Manage Candidates")
+    all_positions = list(positions.keys())
+    if not all_positions:
+        st.warning("No positions created yet. Add a position above.")
+    else:
+        selected_position = st.selectbox("Select Position to Manage Candidates", all_positions)
+        
+        st.write(f"**Current Candidates for {selected_position}:**")
+        current_candidates = positions.get(selected_position, [])
+        if current_candidates:
+            st.table(pd.DataFrame(current_candidates))
+        else:
+            st.info("No candidates for this position yet.")
+
+        with st.form("manage_candidates_form"):
+            candidate_id = st.text_input("Student ID to Add/Remove")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.form_submit_button("Add Candidate"):
+                    student_to_add = next((s for s in students if s['student_id'] == candidate_id), None)
+                    if student_to_add:
+                        candidate_info = {'student_id': student_to_add['student_id'], 'name': student_to_add['name']}
+                        if candidate_info not in current_candidates:
+                            current_candidates.append(candidate_info)
+                            with sqlite3.connect(DB_FILE) as conn:
+                                conn.execute("UPDATE positions SET candidates_json = ? WHERE position_name = ?", (json.dumps(current_candidates), selected_position))
+                                conn.commit()
+                            st.success(f"Added {student_to_add['name']} to {selected_position}.")
+                            st.rerun()
+                        else:
+                            st.warning("Candidate already in this position.")
+                    else:
+                        st.error("Student ID not found.")
+            with col2:
+                 if st.form_submit_button("Remove Candidate"):
+                    if any(c['student_id'] == candidate_id for c in current_candidates):
+                        updated_candidates = [c for c in current_candidates if c['student_id'] != candidate_id]
+                        with sqlite3.connect(DB_FILE) as conn:
+                            conn.execute("UPDATE positions SET candidates_json = ? WHERE position_name = ?", (json.dumps(updated_candidates), selected_position))
+                            conn.commit()
+                        st.success(f"Removed candidate {candidate_id} from {selected_position}.")
+                        st.rerun()
+                    else:
+                        st.error("Candidate not found in this position.")
+
+    st.markdown("---")
+
+    # --- Manage Teachers ---
+    st.subheader("Manage Teachers")
+    st.write("**Current Teachers:**")
+    st.table(pd.DataFrame(teachers, columns=['username', 'grade', 'class']))
+    with st.form("add_teacher_form"):
+        st.write("**Add New Teacher**")
+        teacher_username = st.text_input("Username")
+        teacher_password = st.text_input("Password", type="password")
+        teacher_grade = st.selectbox("Grade", [7, 8, 9])
+        teacher_class = st.selectbox("Class", ['Blue', 'Red', 'Green', 'Yellow', 'Pink', 'Magenta', 'Purple'])
+        if st.form_submit_button("Add Teacher"):
+            with sqlite3.connect(DB_FILE) as conn:
+                try:
+                    conn.execute("INSERT INTO teachers (username, password, grade, class) VALUES (?, ?, ?, ?)",
+                                 (teacher_username, teacher_password, teacher_grade, teacher_class))
+                    conn.commit()
+                    st.success(f"Teacher '{teacher_username}' added.")
+                    st.rerun()
+                except sqlite3.IntegrityError:
+                    st.error("Teacher username already exists.")
+
+    st.markdown("---")
+
+    # --- Manage Weights ---
+    st.subheader("Manage Weights (Must total 100%)")
+    with st.form("weights_form"):
+        total_weight = 0
+        new_weights = {}
+        cols = st.columns(2)
+        weight_names = list(weights.keys())
+        
+        for i, (name, value) in enumerate(weights.items()):
+            with cols[i % 2]:
+                new_weights[name] = st.number_input(name.replace('_', ' ').title(), min_value=0, max_value=100, value=value)
+                total_weight += new_weights[name]
+        
+        st.info(f"**Total Weight:** {total_weight}%")
+
+        if st.form_submit_button("Save Weights"):
+            if total_weight != 100:
+                st.error("Weights must sum to exactly 100.")
+            else:
+                with sqlite3.connect(DB_FILE) as conn:
+                    for name, value in new_weights.items():
+                        conn.execute("UPDATE weights SET value = ? WHERE name = ?", (value, name))
+                    conn.commit()
+                st.success("Weights updated successfully.")
+                st.rerun()
+
+    st.markdown("---")
+
+    # --- Security & Data ---
+    st.subheader("Security & Data")
+    with st.form("update_pin_form"):
+        new_pin = st.text_input("New Admin PIN", type="password")
+        if st.form_submit_button("Update PIN"):
+            with sqlite3.connect(DB_FILE) as conn:
+                conn.execute("UPDATE settings SET value = ? WHERE name = 'pin'", (new_pin,))
+                conn.commit()
+            st.success("PIN updated successfully!")
+
+    votes_df = pd.DataFrame.from_dict(votes, orient='index')
+    csv_file = votes_df.to_csv(index=True, header=True)
+    st.download_button(
+        label="Export Votes (CSV)",
+        data=csv_file,
+        file_name="algocracy_votes.csv",
+        mime="text/csv",
+    )
+
+    st.markdown("---")
+    st.subheader("Danger Zone")
+    if st.button("Factory Reset (Deletes ALL Data)"):
+        if st.checkbox("I am sure I want to delete all students, votes, and positions and reset the system."):
+            with sqlite3.connect(DB_FILE) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM students")
+                cursor.execute("DELETE FROM votes")
+                cursor.execute("DELETE FROM positions")
+                cursor.execute("DELETE FROM teachers")
+                cursor.execute("DELETE FROM settings")
+                cursor.execute("DELETE FROM weights")
+                seed_data(conn) # Re-seed with default data
+                conn.commit()
+            st.success("System has been reset to factory settings.")
+            st.rerun()
+
+    if st.button("Logout"):
+        st.session_state.logged_in_admin = False
+        st.rerun()
 
 def render_voting_page(students, positions, settings):
     st.header("Vote")
@@ -425,6 +563,7 @@ def render_results_page(positions, votes, settings):
     else:
         st.subheader("Final Tally")
         
+        # Calculate votes for each candidate
         vote_counts = {pos: {c['name']: 0 for c in candidates} for pos, candidates in positions.items()}
         
         for voter, voter_votes in votes.items():
@@ -432,6 +571,7 @@ def render_results_page(positions, votes, settings):
                 if position in vote_counts and candidate in vote_counts[position]:
                     vote_counts[position][candidate] += 1
         
+        # Display results
         for position, candidates in vote_counts.items():
             st.subheader(f"Results for {position}")
             if not candidates:
@@ -445,6 +585,7 @@ def render_results_page(positions, votes, settings):
 if __name__ == "__main__":
     init_db()
     
+    # Initialize session state for navigation and login
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 'register'
     if 'logged_in_teacher' not in st.session_state:
@@ -454,7 +595,7 @@ if __name__ == "__main__":
     if 'current_voter' not in st.session_state:
         st.session_state.current_voter = None
 
-    students, teachers, positions, votes, settings = fetch_data()
+    students, teachers, positions, votes, settings, weights = fetch_data()
 
     # Sidebar for navigation
     st.sidebar.image("https://images.unsplash.com/photo-1549419137-9d7a2d480371?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_container_width=True)
@@ -495,4 +636,4 @@ if __name__ == "__main__":
     elif st.session_state.current_page == 'teacher':
         render_teacher_page(teachers, students)
     elif st.session_state.current_page == 'admin':
-        render_admin_page(settings, students, votes)
+        render_admin_page(settings, students, positions, votes, teachers, weights)
