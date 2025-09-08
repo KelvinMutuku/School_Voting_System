@@ -171,18 +171,16 @@ def render_about_page():
     * **Discipline:** 10%
     * **Clubs:** 10%
     * **Community Service:** 5%
-    * **Teacher Assessment:** 10%
+    * **Teacher:** 10%
     * **Leadership:** 10%
     * **Public Speaking:** 10%
-    
-    ### How it works
-    * **Students register with their ID and password, then vote by position.
-    * **Teachers record each student's metric scores (0–100).
-    * **The system computes Final Score per candidate:
-    Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd + Clubs%×Wc 
-    + CommunityService%×Wcs + Teacher%×Wt + Leadership%×Wl + PublicSpeaking%×Wp
 
-Highest Final Score wins each position. Transparent & reproducible.
+    ### How it works
+    * Students register with their ID and password, then vote by position.
+    * Teachers record each student's metric scores (0–100).
+    * The system computes Final Score per candidate:
+        `Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd + Clubs%×Wc + CommunityService%×Wcs + Teacher%×Wt + Leadership%×Wl + PublicSpeaking%×Wp`
+    * The candidate with the highest Final Score wins each position. The system is transparent and reproducible.
     """)
     st.image("https://images.unsplash.com/photo-1549419137-9d7a2d480371?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")
 
@@ -193,7 +191,7 @@ def render_registration_page():
 
     with tab1:
         with st.form("register_form"):
-            student_id = st.text_input("Student ID (e.g., KIS-1234)")
+            student_id = st.text_input("Student ID (e.g., KJS-1234)")
             name = st.text_input("Full Name")
             password = st.text_input("Password", type="password")
             grade = st.selectbox("Grade", [7, 8, 9])
