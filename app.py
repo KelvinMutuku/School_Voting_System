@@ -613,7 +613,7 @@ def render_results_page(positions, votes, settings, metrics, weights):
 
 # --- Main Application Logic ---
 if __name__ == "__main__":
-    st.set_page_config(page_title="Algocracy Elections", layout="wide")
+    st.set_page_config(page_title="KITENGELA INTERNATIONAL SCHOOL JSS Algocracy Elections", layout="wide")
     
     init_db()
 
