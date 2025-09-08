@@ -192,7 +192,7 @@ def render_registration_page():
     with st.form("change_password_form"):
         change_id = st.text_input("Student ID")
         current_password = st.text_input("Current Password", type="password")
-        new_password = st.text_input("New Password", type="password", min_chars=6)
+        new_password = st.text_input("New Password", type="password")
         
         change_submitted = st.form_submit_button("Change Password")
 
@@ -218,38 +218,32 @@ def render_registration_page():
     with st.form("reset_password_form"):
         reset_id = st.text_input("Student ID", key="reset_id_input")
         
-        # We need to look up the security question based on the student ID
-        student_question = None
         if reset_id:
             with sqlite3.connect(DB_FILE) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT security_question FROM students WHERE student_id = ?", (reset_id,))
                 result = cursor.fetchone()
+                
                 if result:
-                    student_question = result[0]
-                    st.info(f"Your security question is: **{student_question}**")
-
-        security_answer = st.text_input("Security Answer")
-        new_password = st.text_input("New Password (min 6 characters)", type="password", min_chars=6)
-        
-        reset_submitted = st.form_submit_button("Reset Password")
-
-        if reset_submitted:
-            if not all([reset_id, security_answer, new_password]):
-                st.error("Please fill in all fields.")
-            else:
-                with sqlite3.connect(DB_FILE) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT security_answer FROM students WHERE student_id = ?", (reset_id,))
-                    answer_result = cursor.fetchone()
+                    st.info(f"Your security question is: **{result[0]}**")
+                    security_answer = st.text_input("Your Answer", key="reset_answer_input")
+                    new_password = st.text_input("New Password", type="password", key="reset_new_password_input")
                     
-                    if answer_result and answer_result[0].lower() == security_answer.lower():
-                        hashed_new_password = bcrypt.hash(new_password, 10).decode('utf-8')
-                        cursor.execute("UPDATE students SET password = ? WHERE student_id = ?", (hashed_new_password, reset_id))
-                        conn.commit()
-                        st.success("Password reset successfully!")
-                    else:
-                        st.error("Invalid student ID or security answer.")
+                    reset_submitted = st.form_submit_button("Reset Password")
+
+                    if reset_submitted:
+                        cursor.execute("SELECT security_answer FROM students WHERE student_id = ?", (reset_id,))
+                        answer_result = cursor.fetchone()
+                        
+                        if answer_result and answer_result[0].lower() == security_answer.lower():
+                            hashed_new_password = bcrypt.hash(new_password, 10).decode('utf-8')
+                            cursor.execute("UPDATE students SET password = ? WHERE student_id = ?", (hashed_new_password, reset_id))
+                            conn.commit()
+                            st.success("Password reset successfully!")
+                        else:
+                            st.error("Incorrect security answer.")
+                else:
+                    st.error("Student ID not found.")
 
 
 def render_teacher_page(teachers, students):
