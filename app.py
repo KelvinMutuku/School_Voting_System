@@ -179,8 +179,8 @@ def render_about_page():
     * **Students register with their ID and password, then vote by position.
     * **Teachers record each student's metric scores (0–100).
     * **The system computes Final Score per candidate:
-    * **Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd + Clubs%×Wc + 
-    CommunityService%×Wcs + Teacher%×Wt + Leadership%×Wl + PublicSpeaking%×Wp
+    Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd + Clubs%×Wc 
+    + CommunityService%×Wcs + Teacher%×Wt + Leadership%×Wl + PublicSpeaking%×Wp
 
 Highest Final Score wins each position. Transparent & reproducible.
     """)
@@ -613,7 +613,7 @@ def render_results_page(positions, votes, settings, metrics, weights):
 
 # --- Main Application Logic ---
 if __name__ == "__main__":
-    st.set_page_config(page_title="KITENGELA INTERNATIONAL SCHOOL JSS Algocracy ELECTIONS", layout="wide")
+    st.set_page_config(page_title="Algocracy Elections", layout="wide")
     
     init_db()
 
@@ -632,9 +632,19 @@ if __name__ == "__main__":
     st.sidebar.title("KISC JSS Algocracy Elections")
     st.sidebar.markdown("---")
     
-    page = st.sidebar.radio("Navigation", ["Register", "About", "Vote", "Results", "Teacher", "Admin"])
-    st.session_state.current_page = page.lower()
-    
+    if st.sidebar.button("Register"):
+        st.session_state.current_page = 'register'
+    if st.sidebar.button("About"):
+        st.session_state.current_page = 'about'
+    if st.sidebar.button("Vote"):
+        st.session_state.current_page = 'vote'
+    if st.sidebar.button("Results"):
+        st.session_state.current_page = 'results'
+    if st.sidebar.button("Teacher"):
+        st.session_state.current_page = 'teacher'
+    if st.sidebar.button("Admin"):
+        st.session_state.current_page = 'admin'
+
     if st.session_state.current_page == 'register':
         render_registration_page()
     elif st.session_state.current_page == 'about':
