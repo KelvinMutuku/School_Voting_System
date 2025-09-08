@@ -1,3 +1,34 @@
+// Import the functions you need from the Firebase SDKs
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
+import { getFirestore, doc, setDoc, getDocs, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBTJf7kM1cYEl6zr0M7qTLaKgZkB0vzflk",
+  authDomain: "algocracy-elections.firebaseapp.com",
+  projectId: "algocracy-elections",
+  storageBucket: "algocracy-elections.firebasestorage.app",
+  messagingSenderId: "1078178070639",
+  appId: "1:1078178070639:web:df3d4ec409d458c16d0d9a",
+  measurementId: "G-MGNXX46FGN"
+};
+
+// Initialize Firebase and Firestore
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getFirestore(app);
+
+// Data variables will now be fetched from Firestore
+let teachers = [];
+let students = [];
+let positions = [];
+let votes = {};
+let metrics = {};
+let weights = {};
+let pin = "";
+let votingOpen = true;
+
 const VOTE_ENDPOINT = "";
 const classes = {
   7: ["Blue", "Red", "Green", "Yellow", "Pink", "Magenta"],
@@ -5,30 +36,7 @@ const classes = {
   9: ["Blue", "Red", "Green", "Yellow", "Pink", "Magenta", "Purple"]
 };
 
-let teachers = JSON.parse(localStorage.getItem("teachers")) || [
-  { username: "teacher7blue", password: "1234", grade: 7, class: "Blue", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher7red", password: "1234", grade: 7, class: "Red", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher7green", password: "1234", grade: 7, class: "Green", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher7yellow", password: "1234", grade: 7, class: "Yellow", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher7pink", password: "1234", grade: 7, class: "Pink", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher7magenta", password: "1234", grade: 7, class: "Magenta", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher8blue", password: "1234", grade: 8, class: "Blue", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher8red", password: "1234", grade: 8, class: "Red", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher8green", password: "1234", grade: 8, class: "Green", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher8yellow", password: "1234", grade: 8, class: "Yellow", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher8pink", password: "1234", grade: 8, class: "Pink", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher8magenta", password: "1234", grade: 8, class: "Magenta", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher9blue", password: "1234", grade: 9, class: "Blue", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher9red", password: "1234", grade: 9, class: "Red", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher9green", password: "1234", grade: 9, class: "Green", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher9yellow", password: "1234", grade: 9, class: "Yellow", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher9pink", password: "1234", grade: 9, class: "Pink", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher9magenta", password: "1234", grade: 9, class: "Magenta", securityQuestion: "", securityAnswer: "" },
-  { username: "teacher9purple", password: "1234", grade: 9, class: "Purple", securityQuestion: "", securityAnswer: "" }
-];
-
-let students = JSON.parse(localStorage.getItem("students")) || generateStudents();
-
+// Helper function to generate students, teachers, etc.
 function generateStudents() {
   const students = [];
   let studentCounter = 1;
@@ -55,7 +63,29 @@ function generateStudents() {
   return students;
 }
 
-let positions = JSON.parse(localStorage.getItem("positions")) || generatePositionsWithCandidates();
+function generateTeachers() {
+  return [
+    { username: "teacher7blue", password: "1234", grade: 7, class: "Blue", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher7red", password: "1234", grade: 7, class: "Red", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher7green", password: "1234", grade: 7, class: "Green", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher7yellow", password: "1234", grade: 7, class: "Yellow", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher7pink", password: "1234", grade: 7, class: "Pink", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher7magenta", password: "1234", grade: 7, class: "Magenta", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher8blue", password: "1234", grade: 8, class: "Blue", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher8red", password: "1234", grade: 8, class: "Red", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher8green", password: "1234", grade: 8, class: "Green", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher8yellow", password: "1234", grade: 8, class: "Yellow", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher8pink", password: "1234", grade: 8, class: "Pink", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher8magenta", password: "1234", grade: 8, class: "Magenta", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher9blue", password: "1234", grade: 9, class: "Blue", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher9red", password: "1234", grade: 9, class: "Red", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher9green", password: "1234", grade: 9, class: "Green", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher9yellow", password: "1234", grade: 9, class: "Yellow", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher9pink", password: "1234", grade: 9, class: "Pink", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher9magenta", password: "1234", grade: 9, class: "Magenta", securityQuestion: "", securityAnswer: "" },
+    { username: "teacher9purple", password: "1234", grade: 9, class: "Purple", securityQuestion: "", securityAnswer: "" }
+  ];
+}
 
 function generatePositionsWithCandidates() {
   const positions = [
@@ -69,20 +99,20 @@ function generatePositionsWithCandidates() {
     { name: "Governor_Grade_9", scope: "grade_9", candidates: ["nineblue1", "ninered1", "ninegreen1"] },
     { name: "Senator_Grade_9", scope: "grade_9", candidates: ["nineyellow1", "ninepink1", "ninemagenta1"] },
     { name: "Girl_Representative_Grade_9", scope: "grade_9", candidates: ["nineblue3", "ninered3", "ninegreen3"] },
-    ...Object.entries(classes).flatMap(([grade, classList]) => 
+    ...Object.entries(classes).flatMap(([grade, classList]) =>
       classList.flatMap(cls => [
         {
-          name: `MCA_Grade_${grade}_${cls}`, 
-          scope: `grade_${grade}_class_${cls.toLowerCase()}`, 
-          candidates: [`${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}1`, 
-                       `${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}2`, 
+          name: `MCA_Grade_${grade}_${cls}`,
+          scope: `grade_${grade}_class_${cls.toLowerCase()}`,
+          candidates: [`${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}1`,
+                       `${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}2`,
                        `${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}3`]
         },
         {
-          name: `${grade} ${cls} MP`, 
-          scope: `grade_${grade}_class_${cls.toLowerCase()}`, 
-          candidates: [`${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}1`, 
-                       `${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}2`, 
+          name: `${grade} ${cls} MP`,
+          scope: `grade_${grade}_class_${cls.toLowerCase()}`,
+          candidates: [`${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}1`,
+                       `${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}2`,
                        `${grade === "7" ? "seven" : grade === "8" ? "eight" : "nine"}${cls.toLowerCase()}3`]
         }
       ])
@@ -91,20 +121,67 @@ function generatePositionsWithCandidates() {
   return positions;
 }
 
-let votes = JSON.parse(localStorage.getItem("votes")) || {};
-let metrics = JSON.parse(localStorage.getItem("metrics")) || {};
-let weights = JSON.parse(localStorage.getItem("weights")) || {
-  studentVotes: 30,
-  academics: 15,
-  discipline: 10,
-  clubs: 10,
-  communityService: 5,
-  teacher: 10,
-  leadership: 10,
-  publicSpeaking: 10
-};
-let pin = localStorage.getItem("pin") || "1234";
-let votingOpen = JSON.parse(localStorage.getItem("votingOpen")) !== false;
+// Initializing Firestore and migrating data from localStorage
+async function initFirestore() {
+  try {
+    const studentsCol = await getDocs(collection(db, "students"));
+    if (studentsCol.empty) {
+      console.log("Migrating data from localStorage to Firestore...");
+      const studentsToMigrate = generateStudents();
+      const teachersToMigrate = generateTeachers();
+      const positionsToMigrate = generatePositionsWithCandidates();
+      const weightsToMigrate = {
+        studentVotes: 30, academics: 15, discipline: 10, clubs: 10, communityService: 5, teacher: 10, leadership: 10, publicSpeaking: 10
+      };
+      const settingsToMigrate = {
+        pin: "1234",
+        votingOpen: true
+      };
+
+      for (const student of studentsToMigrate) {
+        await setDoc(doc(db, "students", student.id), student);
+      }
+      for (const teacher of teachersToMigrate) {
+        await setDoc(doc(db, "teachers", teacher.username), teacher);
+      }
+      await setDoc(doc(db, "positions", "data"), { positions: positionsToMigrate });
+      await setDoc(doc(db, "weights", "data"), weightsToMigrate);
+      await setDoc(doc(db, "settings", "data"), settingsToMigrate);
+    }
+    await fetchData();
+  } catch (e) {
+    console.error("Error initializing Firestore: ", e);
+  }
+}
+
+async function fetchData() {
+  try {
+    students = (await getDocs(collection(db, "students"))).docs.map(doc => doc.data());
+    teachers = (await getDocs(collection(db, "teachers"))).docs.map(doc => doc.data());
+    const positionsDoc = await getDocs(collection(db, "positions"));
+    positions = positionsDoc.docs[0].data().positions;
+    const votesDocs = await getDocs(collection(db, "votes"));
+    votes = votesDocs.docs.reduce((acc, doc) => {
+      acc[doc.id] = doc.data();
+      return acc;
+    }, {});
+    const metricsDocs = await getDocs(collection(db, "metrics"));
+    metrics = metricsDocs.docs.reduce((acc, doc) => {
+      acc[doc.id] = doc.data();
+      return acc;
+    }, {});
+    const weightsDoc = await getDocs(collection(db, "weights"));
+    weights = weightsDoc.docs[0].data();
+    const settingsDoc = await getDocs(collection(db, "settings"));
+    const settings = settingsDoc.docs[0].data();
+    pin = settings.pin;
+    votingOpen = settings.votingOpen;
+
+    showTab("register");
+  } catch (e) {
+    console.error("Error fetching data from Firestore: ", e);
+  }
+}
 
 function showTab(tabId) {
   document.querySelectorAll(".tab-content").forEach(tab => tab.classList.add("hidden"));
@@ -134,7 +211,7 @@ function showStudentName() {
   }
 }
 
-function registerStudent() {
+async function registerStudent() {
   const id = document.getElementById("registerId").value.trim().toUpperCase();
   const password = document.getElementById("registerPassword").value;
   const question = document.getElementById("securityQuestion").value;
@@ -178,21 +255,24 @@ function registerStudent() {
     return;
   }
 
-  student.password = password;
-  student.securityQuestion = question;
-  student.securityAnswer = answer;
-  localStorage.setItem("students", JSON.stringify(students));
-  document.getElementById("registerId").value = "";
-  document.getElementById("registerPassword").value = "";
-  document.getElementById("registerName").value = "";
-  document.getElementById("securityQuestion").value = "";
-  document.getElementById("securityAnswer").value = "";
-  registerError.classList.add("hidden");
-  registerSuccess.classList.remove("hidden");
-  setTimeout(() => registerSuccess.classList.add("hidden"), 2000);
+  try {
+    await setDoc(doc(db, "students", id), { ...student, password, securityQuestion: question, securityAnswer: answer });
+    document.getElementById("registerId").value = "";
+    document.getElementById("registerPassword").value = "";
+    document.getElementById("registerName").value = "";
+    document.getElementById("securityQuestion").value = "";
+    document.getElementById("securityAnswer").value = "";
+    registerError.classList.add("hidden");
+    registerSuccess.classList.remove("hidden");
+    setTimeout(() => registerSuccess.classList.add("hidden"), 2000);
+    await fetchData();
+  } catch (e) {
+    registerError.textContent = "Error during registration: " + e.message;
+    registerError.classList.remove("hidden");
+  }
 }
 
-function changePassword() {
+async function changePassword() {
   const id = document.getElementById("changeId").value.trim().toUpperCase();
   const oldPassword = document.getElementById("oldPassword").value;
   const newPassword = document.getElementById("newPassword").value;
@@ -221,14 +301,19 @@ function changePassword() {
     return;
   }
 
-  student.password = newPassword;
-  localStorage.setItem("students", JSON.stringify(students));
-  document.getElementById("changeId").value = "";
-  document.getElementById("oldPassword").value = "";
-  document.getElementById("newPassword").value = "";
-  changeError.classList.add("hidden");
-  changeSuccess.classList.remove("hidden");
-  setTimeout(() => changeSuccess.classList.add("hidden"), 2000);
+  try {
+    await setDoc(doc(db, "students", id), { ...student, password: newPassword });
+    document.getElementById("changeId").value = "";
+    document.getElementById("oldPassword").value = "";
+    document.getElementById("newPassword").value = "";
+    changeError.classList.add("hidden");
+    changeSuccess.classList.remove("hidden");
+    setTimeout(() => changeSuccess.classList.add("hidden"), 2000);
+    await fetchData();
+  } catch (e) {
+    changeError.textContent = "Error changing password: " + e.message;
+    changeError.classList.remove("hidden");
+  }
 }
 
 function showSecurityQuestion() {
@@ -242,7 +327,7 @@ function showSecurityQuestion() {
   }
 }
 
-function resetPassword() {
+async function resetPassword() {
   const id = document.getElementById("resetId").value.trim().toUpperCase();
   const answer = document.getElementById("resetAnswer").value;
   const newPassword = document.getElementById("resetNewPassword").value;
@@ -271,15 +356,20 @@ function resetPassword() {
     return;
   }
 
-  student.password = newPassword;
-  localStorage.setItem("students", JSON.stringify(students));
-  document.getElementById("resetId").value = "";
-  document.getElementById("resetAnswer").value = "";
-  document.getElementById("resetNewPassword").value = "";
-  document.getElementById("resetQuestion").value = "";
-  resetError.classList.add("hidden");
-  resetSuccess.classList.remove("hidden");
-  setTimeout(() => resetSuccess.classList.add("hidden"), 2000);
+  try {
+    await setDoc(doc(db, "students", id), { ...student, password: newPassword });
+    document.getElementById("resetId").value = "";
+    document.getElementById("resetAnswer").value = "";
+    document.getElementById("resetNewPassword").value = "";
+    document.getElementById("resetQuestion").value = "";
+    resetError.classList.add("hidden");
+    resetSuccess.classList.remove("hidden");
+    setTimeout(() => resetSuccess.classList.add("hidden"), 2000);
+    await fetchData();
+  } catch (e) {
+    resetError.textContent = "Error resetting password: " + e.message;
+    resetError.classList.remove("hidden");
+  }
 }
 
 function validateVoter() {
@@ -313,23 +403,31 @@ function updatePositionDropdown(voter) {
   const grade = voter.grade;
   const cls = voter.class.toLowerCase();
   const votePositions = document.getElementById("votePositions");
-  const relevantPositions = positions.filter(p => 
-    p.scope === "school" || 
-    p.scope === `grade_${grade}` || 
+  const relevantPositions = positions.filter(p =>
+    p.scope === "school" ||
+    p.scope === `grade_${grade}` ||
     p.scope === `grade_${grade}_class_${cls}`
   );
-  votePositions.innerHTML = relevantPositions.map(p => `
-    <div class="mb-4 flex items-center">
-      <label class="w-1/3 text-gray-700 font-semibold">${p.name.replace(/_/g, ' ')}</label>
-      <select id="voteCandidate_${p.name}" class="w-2/3 p-2 border rounded">
-        <option value="">Select a candidate</option>
-        ${p.candidates.filter(c => c !== voter.name).map(c => `<option value="${c}">${c}</option>`).join("")}
-      </select>
-    </div>
-  `).join("");
+
+  votePositions.innerHTML = relevantPositions.map(p => {
+    const hasVoted = localStorage.getItem(`vote_${btoa(voter.id)}_${p.name}`); // Check localStorage for old votes
+    const disabled = hasVoted ? "disabled" : "";
+    const options = p.candidates.filter(c => c !== voter.name).map(c =>
+      `<option value="${c}">${c}</option>`
+    ).join("");
+    return `
+      <div class="mb-4 flex items-center">
+        <label class="w-1/3 text-gray-700 font-semibold">${p.name.replace(/_/g, ' ')}</label>
+        <select id="voteCandidate_${p.name}" class="w-2/3 p-2 border rounded" ${disabled}>
+          <option value="">Select a candidate</option>
+          ${options}
+        </select>
+      </div>
+    `;
+  }).join("");
 }
 
-function submitVote() {
+async function submitVote() {
   const voterId = document.getElementById("voterId").value.trim().toUpperCase();
   const voterPassword = document.getElementById("voterPassword").value;
   const voteError = document.getElementById("voteError");
@@ -349,17 +447,16 @@ function submitVote() {
 
   const grade = voter.grade;
   const cls = voter.class.toLowerCase();
-  const relevantPositions = positions.filter(p => 
-    p.scope === "school" || 
-    p.scope === `grade_${grade}` || 
+  const relevantPositions = positions.filter(p =>
+    p.scope === "school" ||
+    p.scope === `grade_${grade}` ||
     p.scope === `grade_${grade}_class_${cls}`
   );
 
-  const hash = btoa(voterId);
-  let hasError = false;
   let votesSubmitted = 0;
+  let hasError = false;
 
-  relevantPositions.forEach(p => {
+  const promises = relevantPositions.map(async p => {
     const candidate = document.getElementById(`voteCandidate_${p.name}`).value;
     if (candidate) {
       if (p.name.includes("Girl_Representative") && students.find(s => s.name === candidate)?.gender !== "F") {
@@ -369,23 +466,26 @@ function submitVote() {
         return;
       }
 
-      if (localStorage.getItem(`vote_${hash}_${p.name}`)) {
+      const voteRef = doc(db, "votes", p.name);
+      const voteData = (await getDocs(collection(db, "votes"))).docs.find(d => d.id === p.name)?.data() || {};
+      if (voteData[voterId]) {
         voteError.textContent = `You have already voted for ${p.name.replace(/_/g, ' ')}.`;
         voteError.classList.remove("hidden");
         hasError = true;
         return;
       }
 
-      localStorage.setItem(`vote_${hash}_${p.name}`, candidate);
-      if (!votes[p.name]) votes[p.name] = {};
-      votes[p.name][candidate] = (votes[p.name][candidate] || 0) + 1;
+      await setDoc(voteRef, {
+        ...voteData,
+        [voterId]: { candidate, timestamp: new Date() }
+      });
       votesSubmitted++;
     }
   });
 
-  if (hasError) {
-    return;
-  }
+  await Promise.all(promises);
+
+  if (hasError) return;
 
   if (votesSubmitted === 0) {
     voteError.textContent = "Please select at least one candidate.";
@@ -393,21 +493,7 @@ function submitVote() {
     return;
   }
 
-  localStorage.setItem("votes", JSON.stringify(votes));
-
-  if (VOTE_ENDPOINT) {
-    relevantPositions.forEach(p => {
-      const candidate = document.getElementById(`voteCandidate_${p.name}`).value;
-      if (candidate) {
-        fetch(VOTE_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ position: p.name, candidate, voterId: hash })
-        }).catch(error => console.error("Error sending vote to endpoint:", error));
-      }
-    });
-  }
-
+  await fetchData(); // Refresh data after submitting votes
   alert("Votes submitted successfully!");
   voteError.classList.add("hidden");
   document.getElementById("voterId").value = "";
@@ -419,7 +505,7 @@ function submitVote() {
   updateTallyDisplay();
 }
 
-function loginTeacher() {
+async function loginTeacher() {
   const username = document.getElementById("teacherUsername").value.trim();
   const password = document.getElementById("teacherPassword").value;
   const teacherLoginError = document.getElementById("teacherLoginError");
@@ -442,46 +528,45 @@ function updateTeacherMetricsTable(teacher) {
   const tableBody = document.getElementById("teacherMetricsTable");
   const classStudents = students.filter(s => s.grade === teacher.grade && s.class === teacher.class);
   tableBody.innerHTML = classStudents.map(s => {
-    const m = metrics[s.name] || {};
+    const m = metrics[s.id] || {};
     return `
       <tr>
         <td class="border p-2"><span title="ID: ${s.id}">${s.name}</span></td>
-        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_academics" value="${m.academics || ''}"></td>
-        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_discipline" value="${m.discipline || ''}"></td>
-        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_clubs" value="${m.clubs || ''}"></td>
-        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_communityService" value="${m.communityService || ''}"></td>
-        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_teacher" value="${m.teacher || ''}"></td>
-        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_leadership" value="${m.leadership || ''}"></td>
-        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.name}_publicSpeaking" value="${m.publicSpeaking || ''}"></td>
+        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.id}_academics" value="${m.academics || ''}"></td>
+        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.id}_discipline" value="${m.discipline || ''}"></td>
+        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.id}_clubs" value="${m.clubs || ''}"></td>
+        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.id}_communityService" value="${m.communityService || ''}"></td>
+        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.id}_teacher" value="${m.teacher || ''}"></td>
+        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.id}_leadership" value="${m.leadership || ''}"></td>
+        <td class="border p-2"><input type="number" min="0" max="100" class="w-full p-1 border rounded" id="metric_${s.id}_publicSpeaking" value="${m.publicSpeaking || ''}"></td>
       </tr>
     `;
   }).join("");
 }
 
-function saveTeacherMetrics() {
+async function saveTeacherMetrics() {
   const tableBody = document.getElementById("teacherMetricsTable");
   const teacher = teachers.find(t => t.username === document.getElementById("teacherUsername").value.trim());
   const classStudents = students.filter(s => s.grade === teacher.grade && s.class === teacher.class);
   let hasInvalid = false;
 
+  const updates = {};
   classStudents.forEach(s => {
-    const academics = parseInt(document.getElementById(`metric_${s.name}_academics`).value);
-    const discipline = parseInt(document.getElementById(`metric_${s.name}_discipline`).value);
-    const clubs = parseInt(document.getElementById(`metric_${s.name}_clubs`).value);
-    const communityService = parseInt(document.getElementById(`metric_${s.name}_communityService`).value);
-    const teacherScore = parseInt(document.getElementById(`metric_${s.name}_teacher`).value);
-    const leadership = parseInt(document.getElementById(`metric_${s.name}_leadership`).value);
-    const publicSpeaking = parseInt(document.getElementById(`metric_${s.name}_publicSpeaking`).value);
+    const academics = parseInt(document.getElementById(`metric_${s.id}_academics`).value);
+    const discipline = parseInt(document.getElementById(`metric_${s.id}_discipline`).value);
+    const clubs = parseInt(document.getElementById(`metric_${s.id}_clubs`).value);
+    const communityService = parseInt(document.getElementById(`metric_${s.id}_communityService`).value);
+    const teacherScore = parseInt(document.getElementById(`metric_${s.id}_teacher`).value);
+    const leadership = parseInt(document.getElementById(`metric_${s.id}_leadership`).value);
+    const publicSpeaking = parseInt(document.getElementById(`metric_${s.id}_publicSpeaking`).value);
 
     if (!isNaN(academics) || !isNaN(discipline) || !isNaN(clubs) || !isNaN(communityService) || !isNaN(teacherScore) || !isNaN(leadership) || !isNaN(publicSpeaking)) {
       if (isNaN(academics) || isNaN(discipline) || isNaN(clubs) || isNaN(communityService) || isNaN(teacherScore) || isNaN(leadership) || isNaN(publicSpeaking) ||
-          academics < 0 || academics > 100 || discipline < 0 || discipline > 100 || clubs < 0 || clubs > 100 ||
-          communityService < 0 || communityService > 100 || teacherScore < 0 || teacherScore > 100 || leadership < 0 || leadership > 100 ||
-          publicSpeaking < 0 || publicSpeaking > 100) {
+          academics < 0 || academics > 100 || discipline < 0 || discipline > 100 || clubs < 0 || clubs > 100 || communityService < 0 || communityService > 100 || teacherScore < 0 || teacherScore > 100 || leadership < 0 || leadership > 100 || publicSpeaking < 0 || publicSpeaking > 100) {
         hasInvalid = true;
         return;
       }
-      metrics[s.name] = { academics, discipline, clubs, communityService, teacher: teacherScore, leadership, publicSpeaking };
+      updates[s.id] = { academics, discipline, clubs, communityService, teacher: teacherScore, leadership, publicSpeaking };
     }
   });
 
@@ -490,21 +575,29 @@ function saveTeacherMetrics() {
     return;
   }
 
-  localStorage.setItem("metrics", JSON.stringify(metrics));
-  document.getElementById("teacherSaveError").classList.add("hidden");
-  document.getElementById("teacherSaveStatus").classList.remove("hidden");
-  setTimeout(() => document.getElementById("teacherSaveStatus").classList.add("hidden"), 2000);
-  computeResults();
+  try {
+    for (const id in updates) {
+      await setDoc(doc(db, "metrics", id), updates[id]);
+    }
+    await fetchData();
+    document.getElementById("teacherSaveError").classList.add("hidden");
+    document.getElementById("teacherSaveStatus").classList.remove("hidden");
+    setTimeout(() => document.getElementById("teacherSaveStatus").classList.add("hidden"), 2000);
+    computeResults();
+  } catch (e) {
+    document.getElementById("teacherSaveError").textContent = "Error saving metrics: " + e.message;
+    document.getElementById("teacherSaveError").classList.remove("hidden");
+  }
 }
 
-function changeTeacherPassword() {
+async function changeTeacherPassword() {
   const username = document.getElementById("teacherUsername").value.trim();
   const oldPassword = document.getElementById("teacherOldPassword").value;
   const newPassword = document.getElementById("teacherNewPassword").value;
   const changeError = document.getElementById("teacherChangeError");
   const changeSuccess = document.getElementById("teacherChangeSuccess");
-
   const teacher = teachers.find(t => t.username === username);
+
   if (!teacher) {
     changeError.textContent = "Teacher not found.";
     changeError.classList.remove("hidden");
@@ -526,13 +619,18 @@ function changeTeacherPassword() {
     return;
   }
 
-  teacher.password = newPassword;
-  localStorage.setItem("teachers", JSON.stringify(teachers));
-  document.getElementById("teacherOldPassword").value = "";
-  document.getElementById("teacherNewPassword").value = "";
-  changeError.classList.add("hidden");
-  changeSuccess.classList.remove("hidden");
-  setTimeout(() => changeSuccess.classList.add("hidden"), 2000);
+  try {
+    await setDoc(doc(db, "teachers", username), { ...teacher, password: newPassword });
+    document.getElementById("teacherOldPassword").value = "";
+    document.getElementById("teacherNewPassword").value = "";
+    changeError.classList.add("hidden");
+    changeSuccess.classList.remove("hidden");
+    setTimeout(() => changeSuccess.classList.add("hidden"), 2000);
+    await fetchData();
+  } catch (e) {
+    changeError.textContent = "Error changing password: " + e.message;
+    changeError.classList.remove("hidden");
+  }
 }
 
 function showTeacherSecurityQuestion() {
@@ -546,7 +644,7 @@ function showTeacherSecurityQuestion() {
   }
 }
 
-function resetTeacherPassword() {
+async function resetTeacherPassword() {
   const username = document.getElementById("teacherResetUsername").value.trim();
   const answer = document.getElementById("teacherResetAnswer").value;
   const newPassword = document.getElementById("teacherResetNewPassword").value;
@@ -575,25 +673,30 @@ function resetTeacherPassword() {
     return;
   }
 
-  teacher.password = newPassword;
-  localStorage.setItem("teachers", JSON.stringify(teachers));
-  document.getElementById("teacherResetUsername").value = "";
-  document.getElementById("teacherResetAnswer").value = "";
-  document.getElementById("teacherResetNewPassword").value = "";
-  document.getElementById("teacherResetQuestion").value = "";
-  resetError.classList.add("hidden");
-  resetSuccess.classList.remove("hidden");
-  setTimeout(() => resetSuccess.classList.add("hidden"), 2000);
+  try {
+    await setDoc(doc(db, "teachers", username), { ...teacher, password: newPassword });
+    document.getElementById("teacherResetUsername").value = "";
+    document.getElementById("teacherResetAnswer").value = "";
+    document.getElementById("teacherResetNewPassword").value = "";
+    document.getElementById("teacherResetQuestion").value = "";
+    resetError.classList.add("hidden");
+    resetSuccess.classList.remove("hidden");
+    setTimeout(() => resetSuccess.classList.add("hidden"), 2000);
+    await fetchData();
+  } catch (e) {
+    resetError.textContent = "Error resetting password: " + e.message;
+    resetError.classList.remove("hidden");
+  }
 }
 
-function addStudentToClass() {
+async function addStudentToClass() {
   const teacherUsername = document.getElementById("teacherUsername").value.trim();
   const studentId = document.getElementById("studentIdManage").value.trim().toUpperCase();
   const studentName = document.getElementById("studentNameManage").value.trim();
   const studentManageError = document.getElementById("studentManageError");
   const studentManageSuccess = document.getElementById("studentManageSuccess");
-
   const teacher = teachers.find(t => t.username === teacherUsername);
+
   if (!teacher) {
     studentManageError.textContent = "Teacher not logged in.";
     studentManageError.classList.remove("hidden");
@@ -623,559 +726,257 @@ function addStudentToClass() {
     return;
   }
 
-  const newStudent = {
-    name: studentName,
-    id: studentId,
-    password: "1234",
-    grade: teacher.grade,
-    class: teacher.class,
-    gender: "U",
-    securityQuestion: "",
-    securityAnswer: ""
-  };
+  const newStudent = { name: studentName, id: studentId, password: "1234", grade: teacher.grade, class: teacher.class, gender: "U", securityQuestion: "", securityAnswer: "" };
 
-  students.push(newStudent);
-  localStorage.setItem("students", JSON.stringify(students));
-  updateTeacherMetricsTable(teacher);
-  document.getElementById("studentIdManage").value = "";
-  document.getElementById("studentNameManage").value = "";
-  studentManageError.classList.add("hidden");
-  studentManageSuccess.textContent = "Student added successfully!";
-  studentManageSuccess.classList.remove("hidden");
-  setTimeout(() => studentManageSuccess.classList.add("hidden"), 2000);
-}
-
-function removeStudentFromClass() {
-  const teacherUsername = document.getElementById("teacherUsername").value.trim();
-  const studentId = document.getElementById("studentIdManage").value.trim().toUpperCase();
-  const studentManageError = document.getElementById("studentManageError");
-  const studentManageSuccess = document.getElementById("studentManageSuccess");
-
-  const teacher = teachers.find(t => t.username === teacherUsername);
-  if (!teacher) {
-    studentManageError.textContent = "Teacher not logged in.";
-    studentManageError.classList.remove("hidden");
-    studentManageSuccess.classList.add("hidden");
-    return;
-  }
-
-  if (!studentId.match(/^KJS[0-4][0-9]{2}$|^KJS057$/)) {
-    studentManageError.textContent = "Invalid ID format. Use KJS001 to KJS057.";
-    studentManageError.classList.remove("hidden");
-    studentManageSuccess.classList.add("hidden");
-    return;
-  }
-
-  const studentIndex = students.findIndex(s => s.id === studentId && s.grade === teacher.grade && s.class === teacher.class);
-  if (studentIndex === -1) {
-    studentManageError.textContent = "Student not found in this class.";
-    studentManageError.classList.remove("hidden");
-    studentManageSuccess.classList.add("hidden");
-    return;
-  }
-
-  const student = students[studentIndex];
-  positions.forEach(p => {
-    p.candidates = p.candidates.filter(c => c !== student.name);
-  });
-  delete metrics[student.name];
-  students.splice(studentIndex, 1);
-  localStorage.setItem("students", JSON.stringify(students));
-  localStorage.setItem("positions", JSON.stringify(positions));
-  localStorage.setItem("metrics", JSON.stringify(metrics));
-  updateTeacherMetricsTable(teacher);
-  document.getElementById("studentIdManage").value = "";
-  document.getElementById("studentNameManage").value = "";
-  studentManageError.classList.add("hidden");
-  studentManageSuccess.textContent = "Student removed successfully!";
-  studentManageSuccess.classList.remove("hidden");
-  setTimeout(() => studentManageSuccess.classList.add("hidden"), 2000);
-  computeResults();
-}
-
-function clearAllStudents() {
-  if (!confirm("Are you sure you want to clear all students? This will remove all student data and cannot be undone.")) {
-    return;
-  }
-
-  students = generateStudents();
-  metrics = {};
-  positions = generatePositionsWithCandidates();
-  votes = {};
-  localStorage.setItem("students", JSON.stringify(students));
-  localStorage.setItem("metrics", JSON.stringify(metrics));
-  localStorage.setItem("positions", JSON.stringify(positions));
-  localStorage.setItem("votes", JSON.stringify(votes));
-  const teacher = teachers.find(t => t.username === document.getElementById("teacherUsername").value.trim());
-  if (teacher) {
+  try {
+    await setDoc(doc(db, "students", newStudent.id), newStudent);
+    await fetchData();
     updateTeacherMetricsTable(teacher);
-  }
-  document.getElementById("studentManageSuccess").textContent = "All students cleared and reset.";
-  document.getElementById("studentManageSuccess").classList.remove("hidden");
-  setTimeout(() => document.getElementById("studentManageSuccess").classList.add("hidden"), 2000);
-  computeResults();
-}
-
-function unlockAdmin() {
-  const enteredPin = document.getElementById("adminPin").value;
-  if (enteredPin === pin) {
-    document.getElementById("adminForm").classList.remove("hidden");
-    document.getElementById("adminPinError").classList.add("hidden");
-    document.getElementById("votingToggleBtn").textContent = votingOpen ? "Close Voting" : "Open Voting";
-    document.getElementById("votingStatus").textContent = votingOpen ? "Voting is open." : "Voting is closed. Tallies are visible.";
-    updateAdminForm();
-  } else {
-    document.getElementById("adminPinError").classList.remove("hidden");
+    document.getElementById("studentIdManage").value = "";
+    document.getElementById("studentNameManage").value = "";
+    studentManageError.classList.add("hidden");
+    studentManageSuccess.textContent = "Student added successfully!";
+    studentManageSuccess.classList.remove("hidden");
+    setTimeout(() => studentManageSuccess.classList.add("hidden"), 2000);
+  } catch (e) {
+    studentManageError.textContent = "Error adding student: " + e.message;
+    studentManageError.classList.remove("hidden");
   }
 }
 
 function updateAdminForm() {
-  updatePositionListAdmin();
-  updateTeacherListAdmin();
-  updateCandidateList();
-  document.getElementById("weightStudentVotes").value = weights.studentVotes;
-  document.getElementById("weightAcademics").value = weights.academics;
-  document.getElementById("weightDiscipline").value = weights.discipline;
-  document.getElementById("weightClubs").value = weights.clubs;
-  document.getElementById("weightCommunityService").value = weights.communityService;
-  document.getElementById("weightTeacher").value = weights.teacher;
-  document.getElementById("weightLeadership").value = weights.leadership;
-  document.getElementById("weightPublicSpeaking").value = weights.publicSpeaking;
-}
-
-function addPosition() {
-  const newPosition = document.getElementById("newPosition").value.trim();
-  if (newPosition) {
-    positions.push({ name: newPosition, scope: "school", candidates: [] });
-    localStorage.setItem("positions", JSON.stringify(positions));
-    document.getElementById("newPosition").value = "";
-    updatePositionListAdmin();
-    updateCandidateList();
-    alert("Position added successfully!");
-  } else {
-    alert("Please enter a position name.");
-  }
-}
-
-function updatePositionListAdmin() {
-  const positionList = document.getElementById("positionList");
-  positionList.innerHTML = positions.map(p => `
-    <div class="flex justify-between items-center p-2 border-b">
-      <span>${p.name.replace(/_/g, ' ')}</span>
-      <button onclick="removePosition('${p.name}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Remove</button>
-    </div>
-  `).join("");
-  const candidatePosition = document.getElementById("candidatePosition");
-  candidatePosition.innerHTML = `<option value="">Select a position</option>` + 
-    positions.map(p => `<option value="${p.name}">${p.name.replace(/_/g, ' ')}</option>`).join("");
-}
-
-function removePosition(positionName) {
-  positions = positions.filter(p => p.name !== positionName);
-  delete votes[positionName];
-  localStorage.setItem("positions", JSON.stringify(positions));
-  localStorage.setItem("votes", JSON.stringify(votes));
-  updatePositionListAdmin();
-  updateCandidateList();
-  computeResults();
-}
-
-function addTeacher() {
-  const input = document.getElementById("newTeacher").value.trim();
-  const [username, grade, cls, password] = input.split(",");
-  if (username && grade && cls && password) {
-    const validGrade = Object.keys(classes).includes(grade);
-    const validClass = classes[grade]?.includes(cls);
-    if (!validGrade || !validClass) {
-      alert("Invalid grade or class.");
-      return;
-    }
-    if (teachers.find(t => t.username === username)) {
-      alert("Teacher username already exists.");
-      return;
-    }
-    teachers.push({ username, password, grade: parseInt(grade), class: cls, securityQuestion: "", securityAnswer: "" });
-    localStorage.setItem("teachers", JSON.stringify(teachers));
-    document.getElementById("newTeacher").value = "";
-    updateTeacherListAdmin();
-    alert("Teacher added successfully!");
-  } else {
-    alert("Please enter username, grade, class, and password (e.g., teacher7blue,7,Blue,1234).");
-  }
-}
-
-function updateTeacherListAdmin() {
-  const teacherList = document.getElementById("teacherList");
-  teacherList.innerHTML = teachers.map(t => `
-    <div class="flex justify-between items-center p-2 border-b">
-      <span>${t.username} (Grade ${t.grade} ${t.class})</span>
-      <button onclick="removeTeacher('${t.username}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Remove</button>
+  document.getElementById("pin").value = pin;
+  document.getElementById("votingOpen").checked = votingOpen;
+  document.getElementById("weights-list").innerHTML = Object.entries(weights).map(([key, value]) => `
+    <div class="mb-2">
+      <label class="block text-gray-700 font-semibold">${key}</label>
+      <input type="number" id="weight_${key}" class="w-full p-2 border rounded" value="${value}" min="0" max="100">
     </div>
   `).join("");
 }
 
-function removeTeacher(username) {
-  teachers = teachers.filter(t => t.username !== username);
-  localStorage.setItem("teachers", JSON.stringify(teachers));
-  updateTeacherListAdmin();
-}
+async function updateAdminSettings() {
+  const newPin = document.getElementById("pin").value;
+  const newVotingOpen = document.getElementById("votingOpen").checked;
+  const newWeights = {};
+  let totalWeight = 0;
 
-function updateCandidateList() {
-  const positionName = document.getElementById("candidatePosition").value;
-  const candidateList = document.getElementById("candidateList");
-  const position = positions.find(p => p.name === positionName);
-  if (position) {
-    candidateList.innerHTML = `
-      <h4 class="text-lg font-semibold mb-2">Candidates for ${position.name.replace(/_/g, ' ')}</h4>
-      ${position.candidates.length > 0 ? position.candidates.map(c => `
-        <div class="flex justify-between items-center p-2 border-b">
-          <span>${c} (${students.find(s => s.name === c)?.id})</span>
-        </div>
-      `).join("") : "<p>No candidates yet.</p>"}
-    `;
-  } else {
-    candidateList.innerHTML = "<p>Select a position to view candidates.</p>";
-  }
-}
+  Object.keys(weights).forEach(key => {
+    const value = parseInt(document.getElementById(`weight_${key}`).value);
+    newWeights[key] = value;
+    totalWeight += value;
+  });
 
-function addCandidate() {
-  const positionName = document.getElementById("candidatePosition").value;
-  const studentId = document.getElementById("candidateId").value.trim().toUpperCase();
-  const candidateError = document.getElementById("candidateError");
-  const candidateSuccess = document.getElementById("candidateSuccess");
-
-  if (!positionName) {
-    candidateError.textContent = "Please select a position.";
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
+  if (totalWeight !== 100) {
+    document.getElementById("adminError").textContent = "Total weights must equal 100%. Current total: " + totalWeight;
+    document.getElementById("adminError").classList.remove("hidden");
     return;
   }
 
-  if (!studentId.match(/^KJS[0-4][0-9]{2}$|^KJS057$/)) {
-    candidateError.textContent = "Invalid ID format. Use KJS001 to KJS057.";
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
+  try {
+    await setDoc(doc(db, "weights", "data"), newWeights);
+    await setDoc(doc(db, "settings", "data"), { pin: newPin, votingOpen: newVotingOpen });
+    await fetchData();
+    document.getElementById("adminError").classList.add("hidden");
+    document.getElementById("adminSuccess").classList.remove("hidden");
+    setTimeout(() => document.getElementById("adminSuccess").classList.add("hidden"), 2000);
+    computeResults();
+  } catch (e) {
+    document.getElementById("adminError").textContent = "Error updating settings: " + e.message;
+    document.getElementById("adminError").classList.remove("hidden");
   }
-
-  const student = students.find(s => s.id === studentId);
-  if (!student) {
-    candidateError.textContent = "Student ID not found.";
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
-  }
-
-  const position = positions.find(p => p.name === positionName);
-  if (!position) {
-    candidateError.textContent = "Position not found.";
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
-  }
-
-  if (position.name.includes("Girl_Representative") && student.gender !== "F") {
-    candidateError.textContent = "Only female students can be candidates for Girl Representative positions.";
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
-  }
-
-  if (position.scope !== "school" && !position.scope.includes(`grade_${student.grade}`)) {
-    candidateError.textContent = `Student must be in grade ${position.scope.split('_')[1]} to be a candidate for this position.`;
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
-  }
-
-  if (position.scope.includes("class") && !position.scope.includes(`class_${student.class.toLowerCase()}`)) {
-    candidateError.textContent = `Student must be in class ${position.scope.split('_')[3]} to be a candidate for this position.`;
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
-  }
-
-  if (position.candidates.includes(student.name)) {
-    candidateError.textContent = "Student is already a candidate for this position.";
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
-  }
-
-  position.candidates.push(student.name);
-  localStorage.setItem("positions", JSON.stringify(positions));
-document.getElementById("candidateId").value = "";
-  candidateError.classList.add("hidden");
-  candidateSuccess.textContent = "Candidate added successfully!";
-  candidateSuccess.classList.remove("hidden");
-  setTimeout(() => candidateSuccess.classList.add("hidden"), 2000);
-  updateCandidateList();
-}
-
-function removeCandidate() {
-  const positionName = document.getElementById("candidatePosition").value;
-  const studentId = document.getElementById("candidateId").value.trim().toUpperCase();
-  const candidateError = document.getElementById("candidateError");
-  const candidateSuccess = document.getElementById("candidateSuccess");
-
-  if (!positionName) {
-    candidateError.textContent = "Please select a position.";
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
-  }
-
-  if (!studentId.match(/^KJS[0-4][0-9]{2}$|^KJS057$/)) {
-    candidateError.textContent = "Invalid ID format. Use KJS001 to KJS057.";
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
-  }
-
-  const student = students.find(s => s.id === studentId);
-  if (!student) {
-    candidateError.textContent = "Student ID not found.";
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
-  }
-
-  const position = positions.find(p => p.name === positionName);
-  if (!position) {
-    candidateError.textContent = "Position not found.";
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
-  }
-
-  const candidateIndex = position.candidates.indexOf(student.name);
-  if (candidateIndex === -1) {
-    candidateError.textContent = "Student is not a candidate for this position.";
-    candidateError.classList.remove("hidden");
-    candidateSuccess.classList.add("hidden");
-    return;
-  }
-
-  position.candidates.splice(candidateIndex, 1);
-  localStorage.setItem("positions", JSON.stringify(positions));
-  document.getElementById("candidateId").value = "";
-  candidateError.classList.add("hidden");
-  candidateSuccess.textContent = "Candidate removed successfully!";
-  candidateSuccess.classList.remove("hidden");
-  setTimeout(() => candidateSuccess.classList.add("hidden"), 2000);
-  updateCandidateList();
-}
-
-function clearAllCandidates() {
-  if (!confirm("Are you sure you want to clear all candidates? This cannot be undone.")) {
-    return;
-  }
-
-  positions.forEach(p => p.candidates = []);
-  localStorage.setItem("positions", JSON.stringify(positions));
-  updateCandidateList();
-  updatePositionListAdmin();
-  alert("All candidates cleared.");
-}
-
-function toggleVoting() {
-  votingOpen = !votingOpen;
-  localStorage.setItem("votingOpen", JSON.stringify(votingOpen));
-  document.getElementById("votingToggleBtn").textContent = votingOpen ? "Close Voting" : "Open Voting";
-  document.getElementById("votingStatus").textContent = votingOpen ? "Voting is open." : "Voting is closed. Tallies are visible.";
-  updateTallyDisplay();
 }
 
 function updateTallyDisplay() {
-  const tallyResults = document.getElementById("tallyResults");
   const tallyContainer = document.getElementById("tallyContainer");
-  if (!votingOpen) {
+  const tallyResults = document.getElementById("tallyResults");
+  if (Object.keys(votes).length > 0) {
     tallyResults.classList.remove("hidden");
-    tallyContainer.innerHTML = positions.map(p => {
-      const voteCounts = votes[p.name] || {};
-      const totalVotes = Object.values(voteCounts).reduce((sum, count) => sum + count, 0);
-      return `
-        <div class="bg-gray-100 p-4 rounded">
-          <h4 class="font-semibold">${p.name.replace(/_/g, ' ')}</h4>
-          ${p.candidates.map(c => `
-            <div class="flex justify-between">
-              <span>${c}</span>
-              <span>${voteCounts[c] || 0} votes (${totalVotes ? ((voteCounts[c] || 0) / totalVotes * 100).toFixed(1) : 0}%) ${totalVotes ? createBar((voteCounts[c] || 0) / totalVotes * 100) : ''}</span>
-            </div>
-          `).join("")}
-        </div>
-      `;
-    }).join("");
+    tallyContainer.innerHTML = Object.entries(votes).map(([position, voteCounts]) => `
+      <div>
+        <h4 class="font-semibold">${position.replace(/_/g, ' ')}</h4>
+        <ul class="list-disc ml-4">
+          ${Object.entries(voteCounts).map(([candidate, count]) =>
+            `<li>${candidate}: ${Object.keys(count).length} votes</li>`
+          ).join("")}
+        </ul>
+      </div>
+    `).join("");
   } else {
     tallyResults.classList.add("hidden");
   }
 }
 
-function createBar(percentage) {
-  return `
-    <div class="w-full bg-gray-200 rounded h-4 mt-1">
-      <div class="bg-blue-500 h-4 rounded" style="width: ${percentage}%"></div>
-    </div>
-  `;
-}
-
-function saveWeights() {
-  const studentVotes = parseInt(document.getElementById("weightStudentVotes").value);
-  const academics = parseInt(document.getElementById("weightAcademics").value);
-  const discipline = parseInt(document.getElementById("weightDiscipline").value);
-  const clubs = parseInt(document.getElementById("weightClubs").value);
-  const communityService = parseInt(document.getElementById("weightCommunityService").value);
-  const teacher = parseInt(document.getElementById("weightTeacher").value);
-  const leadership = parseInt(document.getElementById("weightLeadership").value);
-  const publicSpeaking = parseInt(document.getElementById("weightPublicSpeaking").value);
-
-  const total = studentVotes + academics + discipline + clubs + communityService + teacher + leadership + publicSpeaking;
-  if (total !== 100 || isNaN(total)) {
-    document.getElementById("weightsError").classList.remove("hidden");
-    return;
-  }
-
-  weights = { studentVotes, academics, discipline, clubs, communityService, teacher, leadership, publicSpeaking };
-  localStorage.setItem("weights", JSON.stringify(weights));
-  document.getElementById("weightsError").classList.add("hidden");
-  alert("Weights saved successfully!");
-  computeResults();
-}
-
 function computeResults() {
   const resultsTable = document.getElementById("resultsTable");
-  resultsTable.innerHTML = positions.map(p => {
-    const voteCounts = votes[p.name] || {};
-    const totalVotes = Object.values(voteCounts).reduce((sum, count) => sum + count, 0);
-    const scores = p.candidates.map(c => {
-      const m = metrics[c] || {};
-      const voteScore = totalVotes ? (voteCounts[c] || 0) / totalVotes * 100 : 0;
-      const finalScore = (
-        (voteScore * weights.studentVotes) +
-        ((m.academics || 0) * weights.academics) +
-        ((m.discipline || 0) * weights.discipline) +
-        ((m.clubs || 0) * weights.clubs) +
-        ((m.communityService || 0) * weights.communityService) +
-        ((m.teacher || 0) * weights.teacher) +
-        ((m.leadership || 0) * weights.leadership) +
-        ((m.publicSpeaking || 0) * weights.publicSpeaking)
-      ) / 100;
-      return { candidate: c, voteScore, finalScore, metrics: m };
+  const finalScores = {};
+  const totalVotes = {};
+
+  // Calculate total votes per position
+  Object.entries(votes).forEach(([position, positionVotes]) => {
+    totalVotes[position] = Object.keys(positionVotes).length;
+  });
+
+  // Calculate final score for each candidate
+  positions.forEach(p => {
+    p.candidates.forEach(candidateName => {
+      const candidateId = students.find(s => s.name === candidateName)?.id;
+      if (!finalScores[p.name]) finalScores[p.name] = {};
+      
+      const candidateMetrics = metrics[candidateId] || {};
+      const voteCount = votes[p.name] ? Object.keys(votes[p.name]).filter(voterId => votes[p.name][voterId].candidate === candidateName).length : 0;
+      const studentVotesPercentage = totalVotes[p.name] ? (voteCount / totalVotes[p.name]) * 100 : 0;
+
+      const academics = candidateMetrics.academics || 0;
+      const discipline = candidateMetrics.discipline || 0;
+      const clubs = candidateMetrics.clubs || 0;
+      const communityService = candidateMetrics.communityService || 0;
+      const teacher = candidateMetrics.teacher || 0;
+      const leadership = candidateMetrics.leadership || 0;
+      const publicSpeaking = candidateMetrics.publicSpeaking || 0;
+
+      const finalScore = (studentVotesPercentage * weights.studentVotes / 100) +
+                         (academics * weights.academics / 100) +
+                         (discipline * weights.discipline / 100) +
+                         (clubs * weights.clubs / 100) +
+                         (communityService * weights.communityService / 100) +
+                         (teacher * weights.teacher / 100) +
+                         (leadership * weights.leadership / 100) +
+                         (publicSpeaking * weights.publicSpeaking / 100);
+
+      finalScores[p.name][candidateName] = {
+        finalScore: finalScore.toFixed(2),
+        academics,
+        discipline,
+        clubs,
+        communityService,
+        teacher,
+        leadership,
+        publicSpeaking,
+        studentVotesPercentage: studentVotesPercentage.toFixed(2),
+      };
     });
-    scores.sort((a, b) => b.finalScore - a.finalScore);
-    return `
+  });
+
+  // Sort candidates by final score and create the results table
+  let tableHTML = "";
+  Object.entries(finalScores).forEach(([position, candidates]) => {
+    const sortedCandidates = Object.entries(candidates).sort((a, b) => b[1].finalScore - a[1].finalScore);
+    tableHTML += `
       <div class="mb-4">
-        <h3 class="text-lg font-semibold">${p.name.replace(/_/g, ' ')}</h3>
-        <table class="w-full border-collapse">
+        <h3 class="text-xl font-semibold mb-2">${position.replace(/_/g, ' ')}</h3>
+        <table class="min-w-full bg-white border">
           <thead>
-            <tr class="bg-gray-100">
-              <th class="border p-2">Candidate</th>
-              <th class="border p-2">Student Votes</th>
-              <th class="border p-2">Academics</th>
-              <th class="border p-2">Discipline</th>
-              <th class="border p-2">Clubs</th>
-              <th class="border p-2">Comm. Service</th>
-              <th class="border p-2">Teacher</th>
-              <th class="border p-2">Leadership</th>
-              <th class="border p-2">Public Speaking</th>
-              <th class="border p-2">Final Score</th>
+            <tr>
+              <th class="py-2 px-4 border-b">Candidate</th>
+              <th class="py-2 px-4 border-b">Final Score</th>
+              <th class="py-2 px-4 border-b">Student Votes %</th>
+              <th class="py-2 px-4 border-b">Academics</th>
+              <th class="py-2 px-4 border-b">Discipline</th>
+              <th class="py-2 px-4 border-b">Clubs</th>
+              <th class="py-2 px-4 border-b">Community Service</th>
+              <th class="py-2 px-4 border-b">Teacher</th>
+              <th class="py-2 px-4 border-b">Leadership</th>
+              <th class="py-2 px-4 border-b">Public Speaking</th>
             </tr>
           </thead>
           <tbody>
-            ${scores.map(s => `
+            ${sortedCandidates.map(([name, scores]) => `
               <tr>
-                <td class="border p-2">${s.candidate} (${students.find(st => st.name === s.candidate)?.id})</td>
-                <td class="border p-2 text-right">${s.voteScore.toFixed(1)}%</td>
-                <td class="border p-2 text-right">${s.metrics.academics || '-'}</td>
-                <td class="border p-2 text-right">${s.metrics.discipline || '-'}</td>
-                <td class="border p-2 text-right">${s.metrics.clubs || '-'}</td>
-                <td class="border p-2 text-right">${s.metrics.communityService || '-'}</td>
-                <td class="border p-2 text-right">${s.metrics.teacher || '-'}</td>
-                <td class="border p-2 text-right">${s.metrics.leadership || '-'}</td>
-                <td class="border p-2 text-right">${s.metrics.publicSpeaking || '-'}</td>
-                <td class="border p-2 text-right">${s.finalScore.toFixed(1)}</td>
+                <td class="py-2 px-4 border-b">${name}</td>
+                <td class="py-2 px-4 border-b">${scores.finalScore}</td>
+                <td class="py-2 px-4 border-b">${scores.studentVotesPercentage}</td>
+                <td class="py-2 px-4 border-b">${scores.academics}</td>
+                <td class="py-2 px-4 border-b">${scores.discipline}</td>
+                <td class="py-2 px-4 border-b">${scores.clubs}</td>
+                <td class="py-2 px-4 border-b">${scores.communityService}</td>
+                <td class="py-2 px-4 border-b">${scores.teacher}</td>
+                <td class="py-2 px-4 border-b">${scores.leadership}</td>
+                <td class="py-2 px-4 border-b">${scores.publicSpeaking}</td>
               </tr>
             `).join("")}
           </tbody>
         </table>
       </div>
     `;
-  }).join("");
+  });
+  resultsTable.innerHTML = tableHTML;
 }
 
 function exportResults() {
-  const csv = ["Position,Candidate,Student Votes,Academics,Discipline,Clubs,Community Service,Teacher,Leadership,Public Speaking,Final Score"];
-  positions.forEach(p => {
-    const voteCounts = votes[p.name] || {};
-    const totalVotes = Object.values(voteCounts).reduce((sum, count) => sum + count, 0);
-    p.candidates.forEach(c => {
-      const m = metrics[c] || {};
-      const voteScore = totalVotes ? (voteCounts[c] || 0) / totalVotes * 100 : 0;
-      const finalScore = (
-        (voteScore * weights.studentVotes) +
-        ((m.academics || 0) * weights.academics) +
-        ((m.discipline || 0) * weights.discipline) +
-        ((m.clubs || 0) * weights.clubs) +
-        ((m.communityService || 0) * weights.communityService) +
-        ((m.teacher || 0) * weights.teacher) +
-        ((m.leadership || 0) * weights.leadership) +
-        ((m.publicSpeaking || 0) * weights.publicSpeaking)
-      ) / 100;
-      csv.push(`${p.name.replace(/_/g, ' ')},${c} (${students.find(s => s.name === c)?.id}),${voteScore.toFixed(1)}%,${m.academics || '-'},${m.discipline || '-'},${m.clubs || '-'},${m.communityService || '-'},${m.teacher || '-'},${m.leadership || '-'},${m.publicSpeaking || '-'},${finalScore.toFixed(1)}`);
+  let csv = "Position,Candidate,Final Score,Student Votes %,Academics,Discipline,Clubs,Community Service,Teacher,Leadership,Public Speaking\n";
+
+  Object.entries(finalScores).forEach(([position, candidates]) => {
+    const sortedCandidates = Object.entries(candidates).sort((a, b) => b[1].finalScore - a[1].finalScore);
+    sortedCandidates.forEach(([name, scores]) => {
+      csv += `${position.replace(/_/g, ' ')},${name},${scores.finalScore},${scores.studentVotesPercentage},${scores.academics},${scores.discipline},${scores.clubs},${scores.communityService},${scores.teacher},${scores.leadership},${scores.publicSpeaking}\n`;
     });
   });
-  const blob = new Blob([csv.join("\n")], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "election_results.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
-function exportVotes() {
-  const csv = ["Position,Voter Hash,Candidate"];
-  Object.keys(votes).forEach(position => {
-    Object.keys(votes[position]).forEach(candidate => {
-      const count = votes[position][candidate];
-      for (let i = 0; i < count; i++) {
-        csv.push(`${position.replace(/_/g, ' ')},anonymous,${candidate}`);
-      }
-    });
-  });
-  const blob = new Blob([csv.join("\n")], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "votes_export.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function updatePin() {
-  const newPin = document.getElementById("newPin").value;
-  if (newPin.length < 4) {
-    alert("PIN must be at least 4 characters.");
-    return;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "election_results.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
-  pin = newPin;
-  localStorage.setItem("pin", pin);
-  document.getElementById("newPin").value = "";
-  alert("PIN updated successfully!");
 }
 
-function downloadBackup() {
-  const backup = { students, teachers, positions, votes, metrics, weights, pin, votingOpen };
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "election_backup.json";
-  a.click();
-  URL.revokeObjectURL(url);
+async function exportVotes() {
+  try {
+    const votesDocs = await getDocs(collection(db, "votes"));
+    const votesData = votesDocs.docs.map(doc => doc.data());
+    const dataStr = JSON.stringify(votesData, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "votes.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert("Error exporting votes: " + e.message);
+  }
 }
 
-function importBackup() {
+async function downloadBackup() {
+  try {
+    const studentsData = (await getDocs(collection(db, "students"))).docs.map(doc => doc.data());
+    const teachersData = (await getDocs(collection(db, "teachers"))).docs.map(doc => doc.data());
+    const positionsData = (await getDocs(collection(db, "positions"))).docs[0].data().positions;
+    const votesData = (await getDocs(collection(db, "votes"))).docs.reduce((acc, doc) => { acc[doc.id] = doc.data(); return acc; }, {});
+    const metricsData = (await getDocs(collection(db, "metrics"))).docs.reduce((acc, doc) => { acc[doc.id] = doc.data(); return acc; }, {});
+    const weightsData = (await getDocs(collection(db, "weights"))).docs[0].data();
+    const settingsData = (await getDocs(collection(db, "settings"))).docs[0].data();
+
+    const backupData = {
+      students: studentsData,
+      teachers: teachersData,
+      positions: positionsData,
+      votes: votesData,
+      metrics: metricsData,
+      weights: weightsData,
+      settings: settingsData
+    };
+
+    const dataStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "algocracy_backup.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert("Error creating backup: " + e.message);
+  }
+}
+
+async function importBackup() {
   const fileInput = document.getElementById("importBackup");
   const file = fileInput.files[0];
   if (!file) {
@@ -1183,102 +984,43 @@ function importBackup() {
     return;
   }
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async (e) => {
     try {
-      const data = JSON.parse(e.target.result);
-      students = data.students || generateStudents();
-      teachers = data.teachers || [];
-      positions = data.positions || generatePositionsWithCandidates();
-      votes = data.votes || {};
-      metrics = data.metrics || {};
-      weights = data.weights || {
-        studentVotes: 30,
-        academics: 15,
-        discipline: 10,
-        clubs: 10,
-        communityService: 5,
-        teacher: 10,
-        leadership: 10,
-        publicSpeaking: 10
-      };
-      pin = data.pin || "1234";
-      votingOpen = data.votingOpen !== false;
-      localStorage.setItem("students", JSON.stringify(students));
-      localStorage.setItem("teachers", JSON.stringify(teachers));
-      localStorage.setItem("positions", JSON.stringify(positions));
-      localStorage.setItem("votes", JSON.stringify(votes));
-      localStorage.setItem("metrics", JSON.stringify(metrics));
-      localStorage.setItem("weights", JSON.stringify(weights));
-      localStorage.setItem("pin", pin);
-      localStorage.setItem("votingOpen", JSON.stringify(votingOpen));
-      updateAdminForm();
-      computeResults();
-      updateTallyDisplay();
-      alert("Backup imported successfully!");
+      const backupData = JSON.parse(e.target.result);
+      
+      const collectionsToClear = ["students", "teachers", "positions", "votes", "metrics", "weights", "settings"];
+      for (const col of collectionsToClear) {
+        const docs = await getDocs(collection(db, col));
+        for (const d of docs.docs) {
+          await deleteDoc(doc(db, col, d.id));
+        }
+      }
+
+      for (const student of backupData.students) {
+        await setDoc(doc(db, "students", student.id), student);
+      }
+      for (const teacher of backupData.teachers) {
+        await setDoc(doc(db, "teachers", teacher.username), teacher);
+      }
+      await setDoc(doc(db, "positions", "data"), { positions: backupData.positions });
+      for (const position in backupData.votes) {
+        await setDoc(doc(db, "votes", position), backupData.votes[position]);
+      }
+      for (const metricId in backupData.metrics) {
+        await setDoc(doc(db, "metrics", metricId), backupData.metrics[metricId]);
+      }
+      await setDoc(doc(db, "weights", "data"), backupData.weights);
+      await setDoc(doc(db, "settings", "data"), backupData.settings);
+
+      alert("Backup imported successfully! The app will now reload.");
+      location.reload();
     } catch (error) {
-      alert("Invalid backup file.");
+      alert("Error importing backup: " + error.message);
     }
   };
   reader.readAsText(file);
 }
 
-function factoryReset() {
-  if (!confirm("Are you sure you want to reset all data? This cannot be undone.")) {
-    return;
-  }
-  students = generateStudents();
-  teachers = [
-    { username: "teacher7blue", password: "1234", grade: 7, class: "Blue", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher7red", password: "1234", grade: 7, class: "Red", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher7green", password: "1234", grade: 7, class: "Green", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher7yellow", password: "1234", grade: 7, class: "Yellow", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher7pink", password: "1234", grade: 7, class: "Pink", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher7magenta", password: "1234", grade: 7, class: "Magenta", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher8blue", password: "1234", grade: 8, class: "Blue", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher8red", password: "1234", grade: 8, class: "Red", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher8green", password: "1234", grade: 8, class: "Green", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher8yellow", password: "1234", grade: 8, class: "Yellow", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher8pink", password: "1234", grade: 8, class: "Pink", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher8magenta", password: "1234", grade: 8, class: "Magenta", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher9blue", password: "1234", grade: 9, class: "Blue", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher9red", password: "1234", grade: 9, class: "Red", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher9green", password: "1234", grade: 9, class: "Green", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher9yellow", password: "1234", grade: 9, class: "Yellow", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher9pink", password: "1234", grade: 9, class: "Pink", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher9magenta", password: "1234", grade: 9, class: "Magenta", securityQuestion: "", securityAnswer: "" },
-    { username: "teacher9purple", password: "1234", grade: 9, class: "Purple", securityQuestion: "", securityAnswer: "" }
-  ];
-  positions = generatePositionsWithCandidates();
-  votes = {};
-  metrics = {};
-  weights = {
-    studentVotes: 30,
-    academics: 15,
-    discipline: 10,
-    clubs: 10,
-    communityService: 5,
-    teacher: 10,
-    leadership: 10,
-    publicSpeaking: 10
-  };
-  pin = "1234";
-  votingOpen = true;
-  localStorage.setItem("students", JSON.stringify(students));
-  localStorage.setItem("teachers", JSON.stringify(teachers));
-  localStorage.setItem("positions", JSON.stringify(positions));
-  localStorage.setItem("votes", JSON.stringify(votes));
-  localStorage.setItem("metrics", JSON.stringify(metrics));
-  localStorage.setItem("weights", JSON.stringify(weights));
-  localStorage.setItem("pin", pin);
-  localStorage.setItem("votingOpen", JSON.stringify(votingOpen));
-  document.getElementById("adminForm").classList.add("hidden");
-  document.getElementById("adminPin").value = "";
-  updateAdminForm();
-  computeResults();
-  updateTallyDisplay();
-  alert("System reset to factory settings.");
-}
 
-// Initialize the page
-showTab("register");
-updateTallyDisplay();
+// Start the application
+initFirestore();
