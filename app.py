@@ -173,7 +173,8 @@ def render_registration_page():
                 st.error("Please fill in all fields.")
             else:
                 try:
-                    hashed_password = bcrypt.hash(password, 10).decode('utf-8')
+                    # CORRECTED: Used bcrypt.hashpw instead of bcrypt.hash
+                    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                     with sqlite3.connect(DB_FILE) as conn:
                         cursor = conn.cursor()
                         cursor.execute(
@@ -206,7 +207,8 @@ def render_registration_page():
                     result = cursor.fetchone()
                     
                     if result and bcrypt.checkpw(current_password.encode('utf-8'), result[0].encode('utf-8')):
-                        hashed_new_password = bcrypt.hash(new_password, 10).decode('utf-8')
+                        # CORRECTED: Used bcrypt.hashpw instead of bcrypt.hash
+                        hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                         cursor.execute("UPDATE students SET password = ? WHERE student_id = ?", (hashed_new_password, change_id))
                         conn.commit()
                         st.success("Password changed successfully!")
@@ -215,35 +217,54 @@ def render_registration_page():
 
     st.markdown("---")
     st.subheader("Reset Password")
-    with st.form("reset_password_form"):
-        reset_id = st.text_input("Student ID", key="reset_id_input")
-        
-        if reset_id:
+    
+    reset_id = st.text_input("Enter Student ID to start password reset", key="reset_id_input")
+
+    if reset_id:
+        question = None
+        try:
             with sqlite3.connect(DB_FILE) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT security_question FROM students WHERE student_id = ?", (reset_id,))
                 result = cursor.fetchone()
-                
                 if result:
-                    st.info(f"Your security question is: **{result[0]}**")
-                    security_answer = st.text_input("Your Answer", key="reset_answer_input")
-                    new_password = st.text_input("New Password", type="password", key="reset_new_password_input")
-                    
-                    reset_submitted = st.form_submit_button("Reset Password")
-
-                    if reset_submitted:
-                        cursor.execute("SELECT security_answer FROM students WHERE student_id = ?", (reset_id,))
-                        answer_result = cursor.fetchone()
-                        
-                        if answer_result and answer_result[0].lower() == security_answer.lower():
-                            hashed_new_password = bcrypt.hash(new_password, 10).decode('utf-8')
-                            cursor.execute("UPDATE students SET password = ? WHERE student_id = ?", (hashed_new_password, reset_id))
-                            conn.commit()
-                            st.success("Password reset successfully!")
-                        else:
-                            st.error("Incorrect security answer.")
+                    question = result[0]
                 else:
-                    st.error("Student ID not found.")
+                    st.warning("Student ID not found. Please check the ID and try again.")
+        except Exception as e:
+            st.error(f"Database error: {e}")
+
+        if question:
+            st.info(f"**Security Question:** {question}")
+            
+            with st.form("reset_password_form"):
+                security_answer = st.text_input("Your Security Answer")
+                new_password = st.text_input("New Password (min 6 characters)", type="password")
+                
+                reset_submitted = st.form_submit_button("Reset Password")
+
+                if reset_submitted:
+                    if len(new_password) < 6:
+                        st.error("Password must be at least 6 characters long.")
+                    elif not security_answer:
+                        st.error("Please enter your security answer.")
+                    else:
+                        try:
+                            with sqlite3.connect(DB_FILE) as conn:
+                                cursor = conn.cursor()
+                                cursor.execute("SELECT security_answer FROM students WHERE student_id = ?", (reset_id,))
+                                answer_result = cursor.fetchone()
+                                
+                                if answer_result and answer_result[0].lower() == security_answer.lower():
+                                    # CORRECTED: Used bcrypt.hashpw instead of bcrypt.hash
+                                    hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                                    cursor.execute("UPDATE students SET password = ? WHERE student_id = ?", (hashed_new_password, reset_id))
+                                    conn.commit()
+                                    st.success("Password reset successfully!")
+                                else:
+                                    st.error("Incorrect security answer.")
+                        except Exception as e:
+                            st.error(f"An error occurred during password reset: {e}")
 
 
 def render_teacher_page(teachers, students):
@@ -281,7 +302,6 @@ def render_admin_page(settings, students, votes):
     if st.session_state.get('logged_in_admin'):
         st.success("Admin access granted.")
         
-        # Use .get() to safely access the key with a default value
         voting_open_str = settings.get('voting_open', 'True')
         current_voting_status = "Open" if voting_open_str == 'True' else "Closed"
         
@@ -405,7 +425,6 @@ def render_results_page(positions, votes, settings):
     else:
         st.subheader("Final Tally")
         
-        # Calculate votes for each candidate
         vote_counts = {pos: {c['name']: 0 for c in candidates} for pos, candidates in positions.items()}
         
         for voter, voter_votes in votes.items():
@@ -413,7 +432,6 @@ def render_results_page(positions, votes, settings):
                 if position in vote_counts and candidate in vote_counts[position]:
                     vote_counts[position][candidate] += 1
         
-        # Display results
         for position, candidates in vote_counts.items():
             st.subheader(f"Results for {position}")
             if not candidates:
@@ -427,7 +445,6 @@ def render_results_page(positions, votes, settings):
 if __name__ == "__main__":
     init_db()
     
-    # Initialize session state for navigation and login
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 'register'
     if 'logged_in_teacher' not in st.session_state:
