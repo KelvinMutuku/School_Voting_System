@@ -1,3 +1,5 @@
 streamlit
 pandas
 bcrypt
+json
+sqlite3
