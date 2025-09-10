@@ -295,7 +295,7 @@ def render_about_page():
         `Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd + Clubs%×Wc + CommunityService%×Wcs + Teacher%×Wt + Leadership%×Wl + PublicSpeaking%×Wp`
     * The candidate with the highest Final Score wins each position. The system is transparent and reproducible.
     """)
-    st.image("https://images.unsplash.com/photo-1549419137-9d7a2d480371?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3")
+    st.image("img-1.jfif")
 
 def render_registration_page():
     st.header("Student Registration")
@@ -1073,7 +1073,7 @@ if __name__ == "__main__":
             st.session_state.last_refresh_time = current_time
             st.rerun()
     
-    st.sidebar.image("https://images.unsplash.com/photo-1549419137-9d7a2d480371?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3", use_container_width=True)
+    st.sidebar.image("img-1.jfif", use_container_width=True)
     st.sidebar.title("Navigation")
     st.sidebar.markdown("---")
     
