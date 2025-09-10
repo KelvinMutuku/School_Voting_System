@@ -3,11 +3,13 @@ import sqlite3
 import bcrypt
 import pandas as pd
 import json
+import time
 
 # --- Constants ---
 STREAMS = ["Blue", "Red", "Green", "Yellow", "Pink", "Magenta", "Purple"]
 GRADES = [7, 8, 9]
 DB_FILE = 'voting_system.db'
+REFRESH_INTERVAL = 10  # Seconds to refresh results page
 
 # --- Set Page Configuration ---
 st.set_page_config(page_title="KITENGELA INTERNATIONAL SCHOOL JSS ALGOCRACY ELECTIONS")
@@ -32,7 +34,6 @@ def init_db():
                 has_voted INTEGER DEFAULT 0
             )
         ''')
-
         # Teacher table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS teachers (
@@ -44,17 +45,15 @@ def init_db():
                 security_answer TEXT NOT NULL
             )
         ''')
-
         # Position table (added student_class for stream-specific positions)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS positions (
                 position_name TEXT PRIMARY KEY,
-                grade INTEGER,  -- Can be 0 for school-wide
-                student_class TEXT,  -- Can be NULL for non-class-specific
+                grade INTEGER, -- Can be 0 for school-wide
+                student_class TEXT, -- Can be NULL for non-class-specific
                 candidates_json TEXT
             )
         ''')
-
         # Vote table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS votes (
@@ -62,7 +61,6 @@ def init_db():
                 votes_json TEXT
             )
         ''')
-
         # Setting table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS settings (
@@ -70,7 +68,6 @@ def init_db():
                 value TEXT
             )
         ''')
-
         # Weights table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS weights (
@@ -78,7 +75,6 @@ def init_db():
                 value INTEGER NOT NULL
             )
         ''')
-
         # Metrics table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS metrics (
@@ -93,28 +89,25 @@ def init_db():
                 FOREIGN KEY (student_id) REFERENCES students (student_id)
             )
         ''')
-
         # Seed initial data
         seed_data(conn)
 
 def seed_data(conn):
     """Seeds the database with initial data if tables are empty."""
     cursor = conn.cursor()
-
     # Seed teachers
     cursor.execute("SELECT COUNT(*) FROM teachers")
     if cursor.fetchone()[0] == 0:
         hashed_password = bcrypt.hashpw('1234'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         teachers_data = []
         for grade in GRADES:
-            for stream in STREAMS[:2]:  # Limit to Blue, Red for default teachers
+            for stream in STREAMS[:2]: # Limit to Blue, Red for default teachers
                 teachers_data.append((
                     f'teacher{grade}{stream.lower()}', hashed_password, grade, stream,
                     'What is your favorite color?', stream.lower()
                 ))
         cursor.executemany("INSERT INTO teachers (username, password, grade, class, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)", teachers_data)
         st.success("Default teachers seeded with hashed passwords.")
-
     # Seed positions and candidates (updated for streams)
     cursor.execute("SELECT COUNT(*) FROM positions")
     if cursor.fetchone()[0] == 0:
@@ -130,7 +123,7 @@ def seed_data(conn):
         ]
         # Add grade- and stream-specific positions
         for grade in GRADES:
-            for stream in STREAMS[:2]:  # Blue, Red for defaults
+            for stream in STREAMS[:2]: # Blue, Red for defaults
                 positions_data.extend([
                     (f'Grade {grade} {stream} Prefect', grade, stream, json.dumps([
                         {'student_id': f'KJS{grade:02d}{stream[:1]}1', 'name': f'{stream} Student {grade}1'}
@@ -141,15 +134,14 @@ def seed_data(conn):
                 ])
         cursor.executemany("INSERT INTO positions (position_name, grade, student_class, candidates_json) VALUES (?, ?, ?, ?)", positions_data)
         st.success("Default positions and candidates seeded.")
-
     # Seed students
     cursor.execute("SELECT COUNT(*) FROM students")
     if cursor.fetchone()[0] == 0:
         students_data = []
         student_id = 1
         for grade in GRADES:
-            for stream in STREAMS[:2]:  # Blue, Red for defaults
-                for i in range(1, 3):  # Two students per stream
+            for stream in STREAMS[:2]: # Blue, Red for defaults
+                for i in range(1, 3): # Two students per stream
                     student_id_str = f'KJS{student_id:03d}'
                     name = f'Student {grade}{stream[:1]}{i}'
                     hashed_password = bcrypt.hashpw('1234'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -161,14 +153,12 @@ def seed_data(conn):
                     student_id += 1
         cursor.executemany("INSERT INTO students (student_id, name, password, grade, student_class, gender, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", students_data)
         st.success("Default students seeded.")
-
     # Seed settings
     cursor.execute("SELECT COUNT(*) FROM settings")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO settings (name, value) VALUES (?, ?)", ('pin', '1234'))
         cursor.execute("INSERT INTO settings (name, value) VALUES (?, ?)", ('voting_open', 'True'))
         st.success("Default settings seeded.")
-
     # Seed weights
     cursor.execute("SELECT COUNT(*) FROM weights")
     if cursor.fetchone()[0] == 0:
@@ -190,23 +180,18 @@ def fetch_data():
         # Fetch students
         cursor.execute("SELECT student_id, name, password, grade, student_class, gender, security_question, security_answer, has_voted FROM students")
         students = [{'student_id': row[0], 'name': row[1], 'password': row[2], 'grade': row[3], 'student_class': row[4], 'gender': row[5], 'security_question': row[6], 'security_answer': row[7], 'has_voted': bool(row[8])} for row in cursor.fetchall()]
-
         # Fetch teachers
         cursor.execute("SELECT username, password, grade, class, security_question, security_answer FROM teachers")
         teachers = [{'username': row[0], 'password': row[1], 'grade': row[2], 'class': row[3], 'security_question': row[4], 'security_answer': row[5]} for row in cursor.fetchall()]
-
         # Fetch positions
         cursor.execute("SELECT position_name, grade, student_class, candidates_json FROM positions")
         positions = {row[0]: {'grade': row[1], 'student_class': row[2], 'candidates': json.loads(row[3])} for row in cursor.fetchall()}
-
         # Fetch votes
         cursor.execute("SELECT voter_id, votes_json FROM votes")
         votes = {row[0]: json.loads(row[1]) for row in cursor.fetchall()}
-
         # Fetch settings
         cursor.execute("SELECT name, value FROM settings")
         settings = {row[0]: row[1] for row in cursor.fetchall()}
-
         # Fetch weights
         cursor.execute("SELECT name, value FROM weights")
         weights = {row[0]: row[1] for row in cursor.fetchall()}
@@ -214,7 +199,6 @@ def fetch_data():
         # Fetch metrics
         cursor.execute("SELECT student_id, academics, discipline, clubs, community_service, teacher, leadership, public_speaking FROM metrics")
         metrics = {row[0]: {'academics': row[1], 'discipline': row[2], 'clubs': row[3], 'community_service': row[4], 'teacher': row[5], 'leadership': row[6], 'public_speaking': row[7]} for row in cursor.fetchall()}
-
     return students, teachers, positions, votes, settings, weights, metrics
 
 # --- JSON Backup/Import Functions ---
@@ -294,10 +278,8 @@ def render_about_page():
     st.header("KITENGELA INTERNATIONAL SCHOOL JSS ALGOCRACY ELECTIONS")
     st.markdown("""
     This platform blends student choice with merit using a transparent formula. Student votes are combined with leadership and performance criteria to select the most suitable leaders.
-
     ### Criteria & Weights (Total 100%)
     These weights can be adjusted by Admin (with a PIN). Default model:
-
     * **Student Votes:** 30%
     * **Academics:** 15%
     * **Discipline:** 10%
@@ -306,7 +288,6 @@ def render_about_page():
     * **Teacher:** 10%
     * **Leadership:** 10%
     * **Public Speaking:** 10%
-
     ### How it works
     * Students register with their ID and password, then vote by position. Some positions are school-wide, while others (like Class Prefect) are restricted to voters of a specific grade and stream.
     * Teachers record each student's metric scores (0–100).
@@ -358,7 +339,6 @@ def render_registration_page():
                     st.error("Student ID already exists.")
                 except Exception as e:
                     st.error(f"An error occurred: {e}")
-
     st.markdown("---")
     st.subheader("Change Password")
     with st.form("change_password_form"):
@@ -367,7 +347,6 @@ def render_registration_page():
         new_password = st.text_input("New Password (min 6 characters)", type="password")
         
         change_submitted = st.form_submit_button("Change Password")
-
         if change_submitted:
             if not all([change_id, current_password, new_password]):
                 st.error("Please fill in all fields.")
@@ -386,7 +365,6 @@ def render_registration_page():
                         st.success("Password changed successfully!")
                     else:
                         st.error("Invalid student ID or current password.")
-
     st.markdown("---")
     st.subheader("Reset Password")
     
@@ -404,7 +382,6 @@ def render_registration_page():
                     st.warning("Student ID not found.")
         except Exception as e:
             st.error(f"Database error: {e}")
-
         if question:
             st.info(f"**Security Question:** {question}")
             with st.form("reset_password_form"):
@@ -412,7 +389,6 @@ def render_registration_page():
                 new_password = st.text_input("New Password (min 6 characters)", type="password")
                 
                 reset_submitted = st.form_submit_button("Reset Password")
-
                 if reset_submitted:
                     if len(new_password) < 6:
                         st.error("Password must be at least 6 characters long.")
@@ -437,7 +413,6 @@ def render_registration_page():
 
 def render_teacher_page(teachers, students, metrics):
     st.header("Teacher Dashboard")
-
     if 'teacher_reset_username' not in st.session_state:
         st.session_state.teacher_reset_username = None
     
@@ -488,9 +463,7 @@ def render_teacher_page(teachers, students, metrics):
                             st.session_state.teacher_reset_username = None
                         else:
                             st.error("Incorrect security answer.")
-
         return
-
     # --- TEACHER IS LOGGED IN ---
     teacher = st.session_state.logged_in_teacher
     st.success(f"Welcome, {teacher['username']} (Grade {teacher['grade']} {teacher['class']})!")
@@ -517,7 +490,6 @@ def render_teacher_page(teachers, students, metrics):
                     'public_speaking': cols[2].number_input("Public Speaking", 0, 100, student_metrics.get('public_speaking', 0), key=f"{s['student_id']}_speak"),
                 }
                 st.markdown("---")
-
             if st.form_submit_button("Save All Metric Scores"):
                 with sqlite3.connect(DB_FILE) as conn:
                     cursor = conn.cursor()
@@ -529,7 +501,6 @@ def render_teacher_page(teachers, students, metrics):
                     conn.commit()
                 st.success("All metric scores have been saved successfully!")
                 st.rerun()
-
     # --- Student Password Management ---
     st.markdown("---")
     st.subheader("Change or Reset Student Passwords")
@@ -580,7 +551,6 @@ def render_teacher_page(teachers, students, metrics):
                         st.rerun()
                     except Exception as e:
                         st.error(f"An error occurred while assigning the student: {e}")
-
     if class_students:
         with st.form("remove_student_from_class_form"):
             st.markdown("**Re-assign a Student From Your Current Class**")
@@ -599,7 +569,6 @@ def render_teacher_page(teachers, students, metrics):
                     st.rerun()
                 except Exception as e:
                     st.error(f"An error occurred while re-assigning the student: {e}")
-
     # --- Clear All Students ---
     st.markdown("---")
     st.subheader("Danger Zone")
@@ -612,7 +581,6 @@ def render_teacher_page(teachers, students, metrics):
                 conn.commit()
             st.success("All students have been cleared.")
             st.rerun()
-
     # --- Teacher Account Management ---
     st.markdown("---")
     st.subheader("My Account")
@@ -636,7 +604,6 @@ def render_teacher_page(teachers, students, metrics):
                     st.session_state.logged_in_teacher['password'] = hashed_new_password
                 else:
                     st.error("Incorrect current password.")
-
     if st.button("Logout"):
         st.session_state.logged_in_teacher = None
         st.session_state.teacher_reset_username = None
@@ -654,9 +621,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
             else:
                 st.error("Invalid PIN.")
         return
-
     st.success("Admin access granted.")
-
     # --- Voting Control ---
     st.subheader("Voting Control")
     voting_open_str = settings.get('voting_open', 'True')
@@ -669,9 +634,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
             conn.commit()
         st.success("Voting status updated.")
         st.rerun()
-
     st.markdown("---")
-
     # --- Positions & Candidates ---
     st.subheader("Positions & Candidates")
     with st.form("add_position_form"):
@@ -684,16 +647,14 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
         if add_position_submitted and new_position_name:
             try:
                 with sqlite3.connect(DB_FILE) as conn:
-                    conn.execute("INSERT INTO positions (position_name, grade, student_class, candidates_json) VALUES (?, ?, ?, ?)", 
+                    conn.execute("INSERT INTO positions (position_name, grade, student_class, candidates_json) VALUES (?, ?, ?, ?)",
                                  (new_position_name, selected_grade, selected_stream, json.dumps([])))
                     conn.commit()
                 st.success(f"Position '{new_position_name}' added for '{grade_options[selected_grade]}'{' ' + selected_stream if selected_stream else ''}.")
                 st.rerun()
             except sqlite3.IntegrityError:
                 st.error("Position name already exists.")
-
     st.markdown("---")
-
     # --- Manage Candidates ---
     st.subheader("Manage Candidates")
     all_position_names = list(positions.keys())
@@ -707,16 +668,13 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
         student_class = position_details.get('student_class')
         grade_display = grade_options.get(grade, "N/A")
         stream_display = student_class if student_class else "None (Grade/School-wide)"
-
         st.write(f"**Position:** {selected_position_name} | **For:** {grade_display}{' ' + stream_display if student_class else ''}")
         st.write(f"**Current Candidates:**")
         current_candidates = position_details.get('candidates', [])
-
         if current_candidates:
             st.table(pd.DataFrame(current_candidates))
         else:
             st.info("No candidates for this position yet.")
-
         with st.form("manage_candidates_form"):
             candidate_id = st.text_input("Student ID to Add/Remove")
             col1, col2 = st.columns(2)
@@ -756,9 +714,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                         st.rerun()
                     else:
                         st.error("Candidate not found in this position.")
-
     st.markdown("---")
-
     # --- Manage Teachers ---
     st.subheader("Manage Teachers")
     st.write("**Current Teachers:**")
@@ -795,9 +751,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                     st.rerun()
                 except sqlite3.IntegrityError:
                     st.error("Teacher username already exists.")
-
     st.markdown("---")
-
     # --- Manage Weights ---
     st.subheader("Manage Weights (Must total 100%)")
     with st.form("weights_form"):
@@ -820,9 +774,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                     conn.commit()
                 st.success("Weights updated successfully.")
                 st.rerun()
-
     st.markdown("---")
-
     # --- Security & Data ---
     st.subheader("Security & Data")
     with st.form("update_pin_form"):
@@ -835,14 +787,11 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                     conn.execute("UPDATE settings SET value = ? WHERE name = 'pin'", (new_pin,))
                     conn.commit()
                 st.success("PIN updated successfully!")
-
     votes_df = pd.DataFrame.from_dict(votes, orient='index')
     csv_file = votes_df.to_csv(index=True, header=True)
     st.download_button(label="Export Votes (CSV)", data=csv_file, file_name="algocracy_votes.csv", mime="text/csv")
-
     json_backup = export_backup()
     st.download_button("Download Backup (JSON)", data=json_backup, file_name="backup.json", mime="application/json")
-
     uploaded_file = st.file_uploader("Import Backup (JSON)", type="json")
     if uploaded_file is not None:
         try:
@@ -852,7 +801,6 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
             st.rerun()
         except Exception as e:
             st.error(f"Error importing backup: {e}")
-
     st.markdown("---")
     st.subheader("Danger Zone")
     if st.button("Factory Reset (Deletes ALL Data)"):
@@ -869,7 +817,6 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                 init_db()
             st.success("System has been reset to factory settings.")
             st.rerun()
-
     if st.button("Logout"):
         st.session_state.logged_in_admin = False
         st.rerun()
@@ -877,7 +824,6 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
 def render_voting_page(students, positions, settings):
     st.header("Vote")
     st.markdown("---")
-
     voting_is_open = settings.get('voting_open') == 'True'
     if not voting_is_open:
         st.warning("Voting is currently closed.")
@@ -904,13 +850,11 @@ def render_voting_page(students, positions, settings):
             else:
                 st.info("No votes yet.")
         return
-
     with st.form("vote_form"):
         st.subheader("Voter Authentication")
         voter_id = st.text_input("Enter your Student ID")
         password = st.text_input("Enter your Password", type="password")
         auth_button = st.form_submit_button("Authenticate")
-
         if auth_button:
             student = next((s for s in students if s['student_id'] == voter_id), None)
             if student and bcrypt.checkpw(password.encode('utf-8'), student['password'].encode('utf-8')):
@@ -942,14 +886,13 @@ def render_voting_page(students, positions, settings):
                    (position_grade == voter_grade and position_stream is None) or \
                    (position_grade == voter_grade and position_stream == voter_stream):
                     candidates = position_data['candidates']
-                    candidate_names = [c['name'] for c in candidates if c['student_id'] != voter['student_id']]  # Exclude voter
+                    candidate_names = [c['name'] for c in candidates if c['student_id'] != voter['student_id']] # Exclude voter
                     if not candidate_names:
                         st.info(f"No eligible candidates for {position_name}.")
                     else:
                         selected_candidate = st.selectbox(f"Vote for {position_name}", [""] + candidate_names, key=position_name)
                         if selected_candidate:
                             selected_votes[position_name] = selected_candidate
-
             if st.form_submit_button("Submit Vote"):
                 try:
                     votes_json = json.dumps(selected_votes)
@@ -970,82 +913,141 @@ def render_results_page(positions, votes, settings, weights, metrics):
     st.header("Election Results")
     st.markdown("---")
     
-    if settings.get('voting_open') == 'True':
-        st.info("Results will be shown here after voting is closed.")
-        return
+    # Display voting status
+    voting_is_open = settings.get('voting_open') == 'True'
+    st.markdown(f"**Voting Status:** {'Open' if voting_is_open else 'Closed'}")
+    st.info(f"Results page auto-refreshes every {REFRESH_INTERVAL} seconds to show live updates.")
 
-    st.subheader("Final Computed Results")
-    csv_lines = ["Position,Candidate,Student Votes,Academics,Discipline,Clubs,Community Service,Teacher,Leadership,Public Speaking,Final Score"]
-
-    for position_name, position_data in positions.items():
-        st.markdown(f"### Results for {position_name}")
-        
-        candidates_list = position_data['candidates']
-        
-        if not candidates_list:
-            st.info("No candidates for this position.")
-            continue
-
-        vote_counts = {c['student_id']: 0 for c in candidates_list}
-        total_position_votes = 0
-        for voter_id, cast_votes in votes.items():
-            voted_candidate_name = cast_votes.get(position_name)
-            if voted_candidate_name:
-                candidate_obj = next((c for c in candidates_list if c['name'] == voted_candidate_name), None)
-                if candidate_obj:
-                    vote_counts[candidate_obj['student_id']] += 1
-                    total_position_votes += 1
-
-        results_data = []
-        for candidate in candidates_list:
-            student_id = candidate['student_id']
-            name = candidate['name']
-            candidate_votes = vote_counts.get(student_id, 0)
-            vote_score = (candidate_votes / total_position_votes * 100) if total_position_votes > 0 else 0
-            candidate_metrics = metrics.get(student_id, {
-                'academics': 0, 'discipline': 0, 'clubs': 0,
-                'community_service': 0, 'teacher': 0, 'leadership': 0,
-                'public_speaking': 0
-            })
-            final_score = (
-                (vote_score * weights.get('student_votes', 0)) +
-                (candidate_metrics['academics'] * weights.get('academics', 0)) +
-                (candidate_metrics['discipline'] * weights.get('discipline', 0)) +
-                (candidate_metrics['clubs'] * weights.get('clubs', 0)) +
-                (candidate_metrics['community_service'] * weights.get('community_service', 0)) +
-                (candidate_metrics['teacher'] * weights.get('teacher', 0)) +
-                (candidate_metrics['leadership'] * weights.get('leadership', 0)) +
-                (candidate_metrics['public_speaking'] * weights.get('public_speaking', 0))
-            ) / 100.0
-            results_data.append({
-                'Candidate': name, 'Vote %': f"{vote_score:.2f}",
-                'Academics': candidate_metrics['academics'],
-                'Discipline': candidate_metrics['discipline'],
-                'Clubs': candidate_metrics['clubs'],
-                'Comm. Service': candidate_metrics['community_service'],
-                'Teacher': candidate_metrics['teacher'],
-                'Public Speaking': candidate_metrics['public_speaking'],
-                'Leadership': candidate_metrics['leadership'],
-                'Final Score': final_score
-            })
+    if voting_is_open:
+        st.subheader("Live Computed Results (Student Votes + Criteria)")
+        for position_name, position_data in positions.items():
+            st.markdown(f"### {position_name}")
+            candidates = position_data['candidates']
             
-            csv_lines.append(f"{position_name},{name},{vote_score:.2f}%,{candidate_metrics['academics']},{candidate_metrics['discipline']},{candidate_metrics['clubs']},{candidate_metrics['community_service']},{candidate_metrics['teacher']},{candidate_metrics['leadership']},{candidate_metrics['public_speaking']},{final_score:.2f}")
-
-        if not results_data:
-            st.info("No votes have been cast for this position yet.")
-            continue
-
-        results_df = pd.DataFrame(results_data).sort_values(by='Final Score', ascending=False).reset_index(drop=True)
-        display_columns = ['Candidate', 'Final Score', 'Vote %', 'Academics', 'Discipline', 'Leadership', 'Public Speaking', 'Clubs', 'Comm. Service', 'Teacher']
-        existing_columns = [col for col in display_columns if col in results_df.columns]
-        results_df = results_df[existing_columns]
-
-        if not results_df.empty:
-            st.success(f"**Winner: {results_df.iloc[0]['Candidate']}** with a final score of **{results_df.iloc[0]['Final Score']:.2f}**")
-            st.dataframe(results_df)
-
-    csv_data = "\n".join(csv_lines)
-    st.download_button("Export Results (CSV)", data=csv_data, file_name="election_results.csv", mime="text/csv")
+            if not candidates:
+                st.info("No candidates for this position.")
+                continue
+            
+            vote_counts = {c['student_id']: 0 for c in candidates}
+            total_votes = 0
+            for voter_id, cast_votes in votes.items():
+                voted_candidate_name = cast_votes.get(position_name)
+                if voted_candidate_name:
+                    candidate_obj = next((c for c in candidates if c['name'] == voted_candidate_name), None)
+                    if candidate_obj:
+                        vote_counts[candidate_obj['student_id']] += 1
+                        total_votes += 1
+            
+            tally_data = []
+            for candidate in candidates:
+                student_id = candidate['student_id']
+                name = candidate['name']
+                votes_received = vote_counts.get(student_id, 0)
+                vote_percentage = (votes_received / total_votes * 100) if total_votes > 0 else 0
+                candidate_metrics = metrics.get(student_id, {
+                    'academics': 0, 'discipline': 0, 'clubs': 0,
+                    'community_service': 0, 'teacher': 0, 'leadership': 0,
+                    'public_speaking': 0
+                })
+                final_score = (
+                    (vote_percentage * weights.get('student_votes', 0)) +
+                    (candidate_metrics['academics'] * weights.get('academics', 0)) +
+                    (candidate_metrics['discipline'] * weights.get('discipline', 0)) +
+                    (candidate_metrics['clubs'] * weights.get('clubs', 0)) +
+                    (candidate_metrics['community_service'] * weights.get('community_service', 0)) +
+                    (candidate_metrics['teacher'] * weights.get('teacher', 0)) +
+                    (candidate_metrics['leadership'] * weights.get('leadership', 0)) +
+                    (candidate_metrics['public_speaking'] * weights.get('public_speaking', 0))
+                ) / 100.0
+                tally_data.append({
+                    'Candidate': name,
+                    'Vote %': f"{vote_percentage:.2f}",
+                    'Academics': candidate_metrics['academics'],
+                    'Discipline': candidate_metrics['discipline'],
+                    'Clubs': candidate_metrics['clubs'],
+                    'Comm. Service': candidate_metrics['community_service'],
+                    'Teacher': candidate_metrics['teacher'],
+                    'Leadership': candidate_metrics['leadership'],
+                    'Public Speaking': candidate_metrics['public_speaking'],
+                    'Final Score': final_score
+                })
+            
+            if tally_data:
+                tally_df = pd.DataFrame(tally_data).sort_values(by='Final Score', ascending=False).reset_index(drop=True)
+                display_columns = ['Candidate', 'Final Score', 'Vote %', 'Academics', 'Discipline', 'Leadership', 'Public Speaking', 'Clubs', 'Comm. Service', 'Teacher']
+                existing_columns = [col for col in display_columns if col in tally_df.columns]
+                tally_df = tally_df[existing_columns]
+                if not tally_df.empty:
+                    st.success(f"**Leading: {tally_df.iloc[0]['Candidate']}** with a final score of **{tally_df.iloc[0]['Final Score']:.2f}**")
+                    st.dataframe(tally_df)
+            else:
+                st.info("No votes yet for this position.")
+    else:
+        st.subheader("Final Computed Results")
+        csv_lines = ["Position,Candidate,Student Votes,Academics,Discipline,Clubs,Community Service,Teacher,Leadership,Public Speaking,Final Score"]
+        for position_name, position_data in positions.items():
+            st.markdown(f"### Results for {position_name}")
+            
+            candidates_list = position_data['candidates']
+            
+            if not candidates_list:
+                st.info("No candidates for this position.")
+                continue
+            vote_counts = {c['student_id']: 0 for c in candidates_list}
+            total_position_votes = 0
+            for voter_id, cast_votes in votes.items():
+                voted_candidate_name = cast_votes.get(position_name)
+                if voted_candidate_name:
+                    candidate_obj = next((c for c in candidates_list if c['name'] == voted_candidate_name), None)
+                    if candidate_obj:
+                        vote_counts[candidate_obj['student_id']] += 1
+                        total_position_votes += 1
+            results_data = []
+            for candidate in candidates_list:
+                student_id = candidate['student_id']
+                name = candidate['name']
+                candidate_votes = vote_counts.get(student_id, 0)
+                vote_score = (candidate_votes / total_position_votes * 100) if total_position_votes > 0 else 0
+                candidate_metrics = metrics.get(student_id, {
+                    'academics': 0, 'discipline': 0, 'clubs': 0,
+                    'community_service': 0, 'teacher': 0, 'leadership': 0,
+                    'public_speaking': 0
+                })
+                final_score = (
+                    (vote_score * weights.get('student_votes', 0)) +
+                    (candidate_metrics['academics'] * weights.get('academics', 0)) +
+                    (candidate_metrics['discipline'] * weights.get('discipline', 0)) +
+                    (candidate_metrics['clubs'] * weights.get('clubs', 0)) +
+                    (candidate_metrics['community_service'] * weights.get('community_service', 0)) +
+                    (candidate_metrics['teacher'] * weights.get('teacher', 0)) +
+                    (candidate_metrics['leadership'] * weights.get('leadership', 0)) +
+                    (candidate_metrics['public_speaking'] * weights.get('public_speaking', 0))
+                ) / 100.0
+                results_data.append({
+                    'Candidate': name, 'Vote %': f"{vote_score:.2f}",
+                    'Academics': candidate_metrics['academics'],
+                    'Discipline': candidate_metrics['discipline'],
+                    'Clubs': candidate_metrics['clubs'],
+                    'Comm. Service': candidate_metrics['community_service'],
+                    'Teacher': candidate_metrics['teacher'],
+                    'Public Speaking': candidate_metrics['public_speaking'],
+                    'Leadership': candidate_metrics['leadership'],
+                    'Final Score': final_score
+                })
+                
+                csv_lines.append(f"{position_name},{name},{vote_score:.2f}%,{candidate_metrics['academics']},{candidate_metrics['discipline']},{candidate_metrics['clubs']},{candidate_metrics['community_service']},{candidate_metrics['teacher']},{candidate_metrics['leadership']},{candidate_metrics['public_speaking']},{final_score:.2f}")
+            if not results_data:
+                st.info("No votes have been cast for this position yet.")
+                continue
+            results_df = pd.DataFrame(results_data).sort_values(by='Final Score', ascending=False).reset_index(drop=True)
+            display_columns = ['Candidate', 'Final Score', 'Vote %', 'Academics', 'Discipline', 'Leadership', 'Public Speaking', 'Clubs', 'Comm. Service', 'Teacher']
+            existing_columns = [col for col in display_columns if col in results_df.columns]
+            results_df = results_df[existing_columns]
+            if not results_df.empty:
+                st.success(f"**Winner: {results_df.iloc[0]['Candidate']}** with a final score of **{results_df.iloc[0]['Final Score']:.2f}**")
+                st.dataframe(results_df)
+        csv_data = "\n".join(csv_lines)
+        st.download_button("Export Results (CSV)", data=csv_data, file_name="election_results.csv", mime="text/csv")
 
 # --- Main Application Logic ---
 if __name__ == "__main__":
@@ -1059,9 +1061,18 @@ if __name__ == "__main__":
         st.session_state.logged_in_admin = False
     if 'current_voter' not in st.session_state:
         st.session_state.current_voter = None
-
+    if 'last_refresh_time' not in st.session_state:
+        st.session_state.last_refresh_time = time.time()
+    
     students, teachers, positions, votes, settings, weights, metrics = fetch_data()
-
+    
+    # Auto-refresh for results page
+    if st.session_state.current_page == 'results':
+        current_time = time.time()
+        if current_time - st.session_state.last_refresh_time >= REFRESH_INTERVAL:
+            st.session_state.last_refresh_time = current_time
+            st.rerun()
+    
     st.sidebar.image("https://images.unsplash.com/photo-1549419137-9d7a2d480371?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3", use_container_width=True)
     st.sidebar.title("Navigation")
     st.sidebar.markdown("---")
@@ -1077,8 +1088,9 @@ if __name__ == "__main__":
     for page_name, page_key in page_map.items():
         if st.sidebar.button(page_name):
             st.session_state.current_page = page_key
+            st.session_state.last_refresh_time = time.time()  # Reset refresh timer on page change
             st.rerun()
-
+    
     page_to_render = st.session_state.get('current_page', 'about')
     if page_to_render == 'register':
         render_registration_page()
