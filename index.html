@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KITENGELA INTERNATIONAL SCHOOL JSS Algocracy ELECTIONS</title>
+  <title>KITENGELA INTERNATIONAL SCHOOL JSS Algocracy eLECTIONS</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="script.js" defer></script>
 </head>
 <body class="bg-gray-100 font-sans">
   <div class="container mx-auto p-4">
@@ -21,7 +22,6 @@
         </ul>
       </nav>
     </header>
-
     <main>
       <section id="register" class="tab-content">
         <h2 class="text-2xl font-semibold mb-4">Student Registration</h2>
@@ -97,23 +97,13 @@
           <p id="resetSuccess" class="text-green-500 mt-2 hidden">Password reset successfully!</p>
         </div>
       </section>
-
       <section id="about" class="tab-content hidden">
         <h2 class="text-2xl font-semibold mb-4">Student Leaders – Algocracy System</h2>
         <p class="mb-4">This platform blends student choice with merit using a clear, public formula. Student votes are combined with leadership and performance criteria to select the most suitable leaders.</p>
         <div class="bg-white p-6 rounded-lg shadow-md mb-4">
           <h3 class="text-xl font-semibold mb-2">Criteria & Weights (Total 100%)</h3>
           <p class="mb-2">These weights can be adjusted by Admin (with a PIN). Default model:</p>
-          <ul class="list-disc ml-6">
-            <li>Student Votes 30%</li>
-            <li>Academics 15%</li>
-            <li>Discipline 10%</li>
-            <li>Clubs 10%</li>
-            <li>Community Service 5%</li>
-            <li>Teacher 10%</li>
-            <li>Leadership 10%</li>
-            <li>Public Speaking 10%</li>
-          </ul>
+          <ul class="list-disc ml-6" id="weightsList"></ul>
         </div>
         <div class="bg-white p-6 rounded-lg shadow-md">
           <h3 class="text-xl font-semibold mb-2">How it works</h3>
@@ -126,7 +116,6 @@
           <p>Highest Final Score wins each position. Transparent & reproducible.</p>
         </div>
       </section>
-
       <section id="vote" class="tab-content hidden">
         <h2 class="text-2xl font-semibold mb-4">Cast Your Vote</h2>
         <div class="bg-white p-6 rounded-lg shadow-md">
@@ -160,14 +149,12 @@
           <div id="tallyContainer" class="grid grid-cols-2 gap-4"></div>
         </div>
       </section>
-
       <section id="results" class="tab-content hidden">
         <h2 class="text-2xl font-semibold mb-4">Computed Results (Student Votes + Criteria)</h2>
         <p class="mb-4">Teachers enter metric scores in the Teacher tab. Student Votes% are calculated automatically from cast votes per position.</p>
         <div id="resultsTable" class="bg-white p-4 rounded-lg shadow-md"></div>
         <button onclick="exportResults()" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Export Results (CSV)</button>
       </section>
-
       <section id="teacher" class="tab-content hidden">
         <h2 class="text-2xl font-semibold mb-4">Teacher Input</h2>
         <div class="bg-white p-6 rounded-lg shadow-md mb-4">
@@ -260,7 +247,6 @@
           <button onclick="clearAllStudents()" class="w-full bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 mt-4">Clear All Students</button>
         </div>
       </section>
-
       <section id="admin" class="tab-content hidden">
         <h2 class="text-2xl font-semibold mb-4">Admin Login</h2>
         <div class="bg-white p-6 rounded-lg shadow-md mb-4">
@@ -369,16 +355,13 @@
               <input type="file" id="importBackup" accept=".json" class="w-full p-2 border rounded">
               <button onclick="importBackup()" class="mt-2 w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Import Backup</button>
             </div>
-            <p class="text-sm text-gray-500 mt-2">Tip: To connect this page to Google Sheets, publish a Google Apps Script as a Web App and change VOTE_ENDPOINT in the source. The page will still work offline via localStorage.</p>
           </div>
         </div>
       </section>
     </main>
-
     <footer class="mt-6 text-center text-gray-500">
       <p>Built for transparency & learning by KISC JUNIOR SCHOOL STEM CLUB</p>
     </footer>
   </div>
-  <script src="main.js"></script>
 </body>
 </html>
