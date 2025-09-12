@@ -146,7 +146,7 @@ Built with Streamlit for rapid web app development.
 Uses bcrypt for secure password hashing.
 
 ***Deployment Links
-Local Storage Version (HTML-based): Access the voting system with local storage at https://kelvinmutuku.github.io/School_Voting_System/.
+PHP - MYSQL Version : Access the voting system with  at http://kiscstemclub-schoolvotingsystem.unaux.com/?i=1.
 
 
-Hosted Storage Version (Streamlit-based): Access the voting system with hosted storage at https://kelvinmutuku-school-voting-system-app-lnqane.streamlit.app/.
+Python - MYSQLite Version (Streamlit-based): Access the voting system with hosted storage at https://kelvinmutuku-school-voting-system-app-lnqane.streamlit.app/.
