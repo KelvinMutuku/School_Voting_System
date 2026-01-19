@@ -4,7 +4,13 @@ import bcrypt
 import pandas as pd
 import json
 import time
+import os
 
+# --- Path Setup ---
+# Get the folder where this script (app.py) is located
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Build the path to the image
+IMG_PATH = os.path.join(BASE_DIR, 'img-1.jfif')
 # --- Constants ---
 STREAMS = ["Blue", "Red", "Green", "Yellow", "Pink", "Magenta", "Purple"]
 GRADES = [7, 8, 9]
@@ -295,7 +301,7 @@ def render_about_page():
         `Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd + Clubs%×Wc + CommunityService%×Wcs + Teacher%×Wt + Leadership%×Wl + PublicSpeaking%×Wp`
     * The candidate with the highest Final Score wins each position. The system is transparent and reproducible.
     """)
-    st.image("img-1.jfif")
+    st.image(IMG_PATH)
 
 def render_registration_page():
     st.header("Student Registration")
@@ -637,9 +643,25 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
     st.markdown("---")
     # --- Positions & Candidates ---
     st.subheader("Positions & Candidates")
+    st.write("**Current Positions:**")
+    if not positions:
+        st.info("No positions defined.")
+    else:
+        # Create a container for the list to keep it organized
+        for position_name in list(positions.keys()):
+            col1, col2 = st.columns([4, 1])
+            col1.write(position_name)
+            # Unique key for each button is essential
+            if col2.button("Remove", key=f"remove_pos_{position_name}"):
+                with sqlite3.connect(DB_FILE) as conn:
+                    # Delete the position from the database
+                    conn.execute("DELETE FROM positions WHERE position_name = ?", (position_name,))
+                    conn.commit()
+                st.success(f"Position '{position_name}' removed.")
+                st.rerun()
     with st.form("add_position_form"):
         new_position_name = st.text_input("New Position Name")
-        grade_options = {0: "All Grades", 7: "Grade 7", 8: "Grade 8", 9: "Grade 9"}
+        grade_options = {0: "All Grades", 7: "Grade 7", 8: "Grade 8", 9: "Grade 9", 10: "Grade 10"}
         selected_grade = st.selectbox("Assign to Grade", options=list(grade_options.keys()), format_func=lambda x: grade_options[x])
         selected_stream = st.selectbox("Assign to Stream (optional)", options=[None] + STREAMS, format_func=lambda x: "None (Grade/School-wide)" if x is None else x)
         
@@ -1073,7 +1095,7 @@ if __name__ == "__main__":
             st.session_state.last_refresh_time = current_time
             st.rerun()
     
-    st.sidebar.image("img-1.jfif", use_container_width=True)
+    st.sidebar.image(IMG_PATH, use_container_width=True)
     st.sidebar.title("Navigation")
     st.sidebar.markdown("---")
     
