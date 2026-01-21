@@ -658,6 +658,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                 st.error("Invalid PIN.")
         return
     st.success("Admin access granted.")
+    
     # --- Voting Control ---
     st.subheader("Voting Control")
     voting_open_str = settings.get('voting_open', 'True')
@@ -671,102 +672,143 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
         st.success("Voting status updated.")
         st.rerun()
     st.markdown("---")
+    
     # --- Positions & Candidates ---
     st.subheader("Positions & Candidates")
     st.write("**Current Positions:**")
     if not positions:
         st.info("No positions defined.")
     else:
-        # Create a container for the list to keep it organized
         for position_name in list(positions.keys()):
             col1, col2 = st.columns([4, 1])
             col1.write(position_name)
-            # Unique key for each button is essential
             if col2.button("Remove", key=f"remove_pos_{position_name}"):
                 with sqlite3.connect(DB_FILE) as conn:
-                    # Delete the position from the database
                     conn.execute("DELETE FROM positions WHERE position_name = ?", (position_name,))
                     conn.commit()
                 st.success(f"Position '{position_name}' removed.")
                 st.rerun()
+    
     with st.form("add_position_form"):
         new_position_name = st.text_input("New Position Name")
         grade_options = {0: "All Grades", 7: "Grade 7", 8: "Grade 8", 9: "Grade 9"}
         selected_grade = st.selectbox("Assign to Grade", options=list(grade_options.keys()), format_func=lambda x: grade_options[x])
         selected_stream = st.selectbox("Assign to Stream (optional)", options=[None] + STREAMS, format_func=lambda x: "None (Grade/School-wide)" if x is None else x)
         
-        add_position_submitted = st.form_submit_button("Add Position")
-        if add_position_submitted and new_position_name:
-            try:
-                with sqlite3.connect(DB_FILE) as conn:
-                    conn.execute("INSERT INTO positions (position_name, grade, student_class, candidates_json) VALUES (?, ?, ?, ?)",
-                                 (new_position_name, selected_grade, selected_stream, json.dumps([])))
-                    conn.commit()
-                st.success(f"Position '{new_position_name}' added for '{grade_options[selected_grade]}'{' ' + selected_stream if selected_stream else ''}.")
-                st.rerun()
-            except sqlite3.IntegrityError:
-                st.error("Position name already exists.")
+        if st.form_submit_button("Add Position"):
+            if new_position_name:
+                try:
+                    with sqlite3.connect(DB_FILE) as conn:
+                        conn.execute("INSERT INTO positions (position_name, grade, student_class, candidates_json) VALUES (?, ?, ?, ?)",
+                                     (new_position_name, selected_grade, selected_stream, json.dumps([])))
+                        conn.commit()
+                    st.success(f"Position '{new_position_name}' added.")
+                    st.rerun()
+                except sqlite3.IntegrityError:
+                    st.error("Position name already exists.")
+
     st.markdown("---")
+    
     # --- Manage Candidates ---
     st.subheader("Manage Candidates")
     all_position_names = sorted(list(positions.keys()))
+    
     if not all_position_names:
         st.warning("No positions created yet. Add a position above.")
     else:
         selected_position_name = st.selectbox("Select Position to Manage Candidates", all_position_names)
-        
         position_details = positions.get(selected_position_name, {})
         grade = position_details.get('grade')
         student_class = position_details.get('student_class')
-        grade_display = grade_options.get(grade, "N/A")
-        stream_display = student_class if student_class else "None (Grade/School-wide)"
-        st.write(f"**Position:** {selected_position_name} | **For:** {grade_display}{' ' + stream_display if student_class else ''}")
-        st.write(f"**Current Candidates:**")
+        
+        st.write(f"**Current Candidates for {selected_position_name}:**")
         current_candidates = position_details.get('candidates', [])
+        
         if current_candidates:
             st.table(pd.DataFrame(current_candidates))
         else:
-            st.info("No candidates for this position yet.")
+            st.info("No candidates yet.")
+
+        # --- SINGLE FORM FOR CANDIDATES ---
         with st.form("manage_candidates_form"):
-            candidate_id = st.text_input("Student ID to Add/Remove").strip()
+            is_joint_ticket = "President & Deputy" in selected_position_name
+            
+            # 1. Inputs
+            if is_joint_ticket:
+                st.info("Joint Ticket: Enter IDs for both President and Deputy.")
+                c1, c2 = st.columns(2)
+                id_pres = c1.text_input("President ID", key="pres_input").strip()
+                id_dep = c2.text_input("Deputy ID", key="dep_input").strip()
+                candidate_id = f"{id_pres}+{id_dep}"
+            else:
+                candidate_id = st.text_input("Student ID to Add/Remove", key="single_input").strip()
+
+            # 2. Buttons
             col1, col2 = st.columns(2)
-            with col1:
-                if st.form_submit_button("Add Candidate"):
-                    student_to_add = next((s for s in students if s['student_id'] == candidate_id), None)
-                    if student_to_add:
-                        # Gender validation for Girl Representative
-                        if 'Girl Representative' in selected_position_name and student_to_add['gender'] != 'Female':
-                            st.error("Only female students can be candidates for Girl Representative positions.")
-                        # Grade and stream validation
-                        elif student_class and (student_to_add['student_class'] != student_class or student_to_add['grade'] != grade):
-                            st.error(f"Candidate must be in Grade {grade} {student_class}.")
-                        elif grade != 0 and student_to_add['grade'] != grade:
-                            st.error(f"Candidate must be in Grade {grade}.")
+            
+            # ADD BUTTON
+            if col1.form_submit_button("Add Candidate"):
+                if is_joint_ticket:
+                    # Joint Ticket Logic
+                    s1 = next((s for s in students if s['student_id'] == id_pres), None)
+                    s2 = next((s for s in students if s['student_id'] == id_dep), None)
+                    
+                    if not s1 or not s2:
+                        st.error("One or both Student IDs not found.")
+                    elif id_pres == id_dep:
+                        st.error("IDs must be different.")
+                    else:
+                        name = f"{s1['name']} & {s2['name']}"
+                        new_cand = {'student_id': candidate_id, 'name': name}
+                        if new_cand not in current_candidates:
+                            current_candidates.append(new_cand)
+                            with sqlite3.connect(DB_FILE) as conn:
+                                conn.execute("UPDATE positions SET candidates_json=? WHERE position_name=?", (json.dumps(current_candidates), selected_position_name))
+                                conn.commit()
+                            st.success(f"Added: {name}")
+                            st.rerun()
                         else:
-                            candidate_info = {'student_id': student_to_add['student_id'], 'name': student_to_add['name']}
-                            if candidate_info not in current_candidates:
-                                current_candidates.append(candidate_info)
+                            st.warning("Already added.")
+                else:
+                    # Single Candidate Logic
+                    s = next((s for s in students if s['student_id'] == candidate_id), None)
+                    if s:
+                        # Validations
+                        if 'Girl Representative' in selected_position_name and s['gender'] != 'Female':
+                            st.error("Must be Female.")
+                        elif student_class and (s['student_class'] != student_class or s['grade'] != grade):
+                            st.error(f"Must be Grade {grade} {student_class}.")
+                        elif grade != 0 and s['grade'] != grade:
+                            st.error(f"Must be Grade {grade}.")
+                        else:
+                            new_cand = {'student_id': s['student_id'], 'name': s['name']}
+                            if new_cand not in current_candidates:
+                                current_candidates.append(new_cand)
                                 with sqlite3.connect(DB_FILE) as conn:
-                                    conn.execute("UPDATE positions SET candidates_json = ? WHERE position_name = ?", (json.dumps(current_candidates), selected_position_name))
+                                    conn.execute("UPDATE positions SET candidates_json=? WHERE position_name=?", (json.dumps(current_candidates), selected_position_name))
                                     conn.commit()
-                                st.success(f"Added {student_to_add['name']} to {selected_position_name}.")
+                                st.success(f"Added: {s['name']}")
                                 st.rerun()
                             else:
-                                st.warning("Candidate already in this position.")
+                                st.warning("Already added.")
                     else:
-                        st.error("Student ID not found.")
-            with col2:
-                if st.form_submit_button("Remove Candidate"):
-                    if any(c['student_id'] == candidate_id for c in current_candidates):
-                        updated_candidates = [c for c in current_candidates if c['student_id'] != candidate_id]
-                        with sqlite3.connect(DB_FILE) as conn:
-                            conn.execute("UPDATE positions SET candidates_json = ? WHERE position_name = ?", (json.dumps(updated_candidates), selected_position_name))
-                            conn.commit()
-                        st.success(f"Removed candidate {candidate_id} from {selected_position_name}.")
-                        st.rerun()
-                    else:
-                        st.error("Candidate not found in this position.")
+                        st.error("ID Not Found.")
+
+            # REMOVE BUTTON
+            if col2.form_submit_button("Remove Candidate"):
+                # Filter out the ID
+                new_list = [c for c in current_candidates if c['student_id'] != candidate_id]
+                if len(new_list) < len(current_candidates):
+                    with sqlite3.connect(DB_FILE) as conn:
+                        conn.execute("UPDATE positions SET candidates_json=? WHERE position_name=?", (json.dumps(new_list), selected_position_name))
+                        conn.commit()
+                    st.success("Removed.")
+                    st.rerun()
+                else:
+                    st.error("ID not found in list.")
+
     st.markdown("---")
+    
     # --- Manage Teachers ---
     st.subheader("Manage Teachers")
     st.write("**Current Teachers:**")
@@ -779,119 +821,96 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                 conn.commit()
             st.success(f"Teacher {teacher['username']} removed.")
             st.rerun()
+            
     with st.form("add_teacher_form"):
         st.write("**Add New Teacher**")
-        teacher_username = st.text_input("Username")
-        teacher_password = st.text_input("Password (min 6 characters)", type="password")
-        teacher_grade = st.selectbox("Grade", GRADES)
-        teacher_class = st.selectbox("Stream", STREAMS)
-        security_question = st.text_input("Security Question")
-        security_answer = st.text_input("Security Answer")
+        tu = st.text_input("Username")
+        tp = st.text_input("Password", type="password")
+        tg = st.selectbox("Grade", GRADES, key="new_teach_grade")
+        tc = st.selectbox("Stream", STREAMS, key="new_teach_stream")
+        sq = st.text_input("Security Question")
+        sa = st.text_input("Security Answer")
+        
         if st.form_submit_button("Add Teacher"):
-            if not all([teacher_username, teacher_password, security_question, security_answer]):
-                st.error("Please fill all fields for the new teacher.")
-            elif len(teacher_password) < 6:
-                st.error("Password must be at least 6 characters long.")
+            if len(tp) < 6:
+                st.error("Password too short.")
             else:
                 try:
-                    hashed_password = bcrypt.hashpw(teacher_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    hp = bcrypt.hashpw(tp.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                     with sqlite3.connect(DB_FILE) as conn:
-                        conn.execute("INSERT INTO teachers (username, password, grade, class, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?)",
-                                     (teacher_username, hashed_password, teacher_grade, teacher_class, security_question, security_answer))
+                        conn.execute("INSERT INTO teachers VALUES (?,?,?,?,?,?)", (tu, hp, tg, tc, sq, sa))
                         conn.commit()
-                    st.success(f"Teacher '{teacher_username}' added.")
+                    st.success("Teacher Added.")
                     st.rerun()
-                except sqlite3.IntegrityError:
-                    st.error("Teacher username already exists.")
+                except:
+                    st.error("Error adding teacher.")
+
     st.markdown("---")
+    
     # --- Manage Weights ---
-# --- Manage Weights ---
     st.subheader("Manage Weights (Must total 100%)")
     with st.form("weights_form"):
-        # 1. Define exactly what we want to keep
-        allowed_keys = ['student_votes', 'academics', 'discipline', 'community_service', 'leadership', 'public_speaking']
-        
-        # 2. Filter the current weights to show only these
-        # If a key is missing from DB, default it to 0
-        current_visible_weights = {k: weights.get(k, 0) for k in allowed_keys}
-        
-        total_weight = 0
-        new_weights = {}
+        allowed = ['student_votes', 'academics', 'discipline', 'community_service', 'leadership', 'public_speaking']
+        current_w = {k: weights.get(k, 0) for k in allowed}
+        new_w = {}
+        total = 0
         cols = st.columns(2)
         
-        # 3. Create inputs only for the allowed keys
-        for i, name in enumerate(allowed_keys):
+        for i, k in enumerate(allowed):
             with cols[i % 2]:
-                # Use the value from DB, or 0 if not found
-                val = current_visible_weights[name]
-                label = name.replace('_', ' ').title()
-                new_weights[name] = st.number_input(label, min_value=0, max_value=100, value=val)
-                total_weight += new_weights[name]
+                new_w[k] = st.number_input(k.replace('_',' ').title(), 0, 100, current_w[k])
+                total += new_w[k]
         
-        st.info(f"**Total Weight:** {total_weight}%")
+        st.info(f"Total: {total}%")
         
         if st.form_submit_button("Save Weights"):
-            if total_weight != 100:
-                st.error(f"Weights must sum to exactly 100. Current total: {total_weight}")
-            else:
+            if total == 100:
                 with sqlite3.connect(DB_FILE) as conn:
-                    # A. Update the allowed weights
-                    for name, value in new_weights.items():
-                        # Insert or Update (upsert) to ensure they exist
-                        conn.execute("INSERT OR REPLACE INTO weights (name, value) VALUES (?, ?)", (name, value))
-                    
-                    # B. NUKE the unwanted weights from the DB so they are gone forever
+                    for k, v in new_w.items():
+                        conn.execute("INSERT OR REPLACE INTO weights (name, value) VALUES (?, ?)", (k, v))
                     conn.execute("DELETE FROM weights WHERE name IN ('clubs', 'teacher')")
                     conn.commit()
-                    
-                st.success("Weights updated successfully! (Clubs and Teacher removed from DB)")
+                st.success("Weights Saved.")
                 st.rerun()
-    # --- Security & Data ---
-    st.subheader("Security & Data")
-    with st.form("update_pin_form"):
-        new_pin = st.text_input("New Admin PIN (min 4 characters)", type="password")
-        if st.form_submit_button("Update PIN"):
-            if len(new_pin) < 4:
-                st.error("PIN must be at least 4 characters long.")
             else:
-                with sqlite3.connect(DB_FILE) as conn:
-                    conn.execute("UPDATE settings SET value = ? WHERE name = 'pin'", (new_pin,))
-                    conn.commit()
-                st.success("PIN updated successfully!")
-    votes_df = pd.DataFrame.from_dict(votes, orient='index')
-    csv_file = votes_df.to_csv(index=True, header=True)
-    st.download_button(label="Export Votes (CSV)", data=csv_file, file_name="algocracy_votes.csv", mime="text/csv")
-    json_backup = export_backup()
-    st.download_button("Download Backup (JSON)", data=json_backup, file_name="backup.json", mime="application/json")
-    uploaded_file = st.file_uploader("Import Backup (JSON)", type="json")
-    if uploaded_file is not None:
+                st.error("Total must be 100.")
+
+    st.markdown("---")
+    
+    # --- Data Management ---
+    st.subheader("Data Management")
+    # Export Votes
+    v_df = pd.DataFrame.from_dict(votes, orient='index')
+    st.download_button("Export Votes CSV", v_df.to_csv(), "votes.csv", "text/csv")
+    
+    # Export Backup
+    st.download_button("Download JSON Backup", export_backup(), "backup.json", "application/json")
+    
+    # Import Backup
+    up_file = st.file_uploader("Import JSON", type="json")
+    if up_file:
         try:
-            data = json.load(uploaded_file)
-            import_backup(data)
-            st.success("Backup imported successfully!")
+            import_backup(json.load(up_file))
+            st.success("Imported.")
             st.rerun()
         except Exception as e:
-            st.error(f"Error importing backup: {e}")
+            st.error(f"Error: {e}")
+
+    # Reset
     st.markdown("---")
     st.subheader("Danger Zone")
     if st.button("Factory Reset (Deletes ALL Data)"):
-        if st.checkbox("I am sure I want to delete all data and reset the system."):
+        if st.checkbox("Confirm Delete All Data"):
             with sqlite3.connect(DB_FILE) as conn:
-                cursor = conn.cursor()
-                cursor.execute("DROP TABLE IF EXISTS students")
-                cursor.execute("DROP TABLE IF EXISTS votes")
-                cursor.execute("DROP TABLE IF EXISTS positions")
-                cursor.execute("DROP TABLE IF EXISTS teachers")
-                cursor.execute("DROP TABLE IF EXISTS settings")
-                cursor.execute("DROP TABLE IF EXISTS weights")
-                cursor.execute("DROP TABLE IF EXISTS metrics")
+                for t in ["students", "votes", "positions", "teachers", "settings", "weights", "metrics"]:
+                    conn.execute(f"DROP TABLE IF EXISTS {t}")
                 init_db()
-            st.success("System has been reset to factory settings.")
+            st.success("Reset Complete.")
             st.rerun()
+            
     if st.button("Logout"):
         st.session_state.logged_in_admin = False
         st.rerun()
-
 def render_voting_page(students, positions, settings):
     st.header("Vote")
     st.markdown("---")
