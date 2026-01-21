@@ -535,6 +535,42 @@ def render_teacher_page(teachers, students, metrics):
     # --- Class Roster Management ---
     st.markdown("---")
     st.subheader("Manage Class Roster")
+    # [PASTE THIS INSIDE render_teacher_page, AFTER "Manage Class Roster"]
+
+    st.markdown("---")
+    st.subheader("Fix Student Gender")
+    st.info("If a student in your class has the wrong gender assigned, correct it here.")
+
+    with st.form("teacher_fix_gender_form"):
+        col1, col2 = st.columns([1, 1])
+        # .strip() prevents errors if they copy-paste with spaces
+        fix_id = col1.text_input("Enter Student ID (e.g., KJS001)").strip()
+        new_gender = col2.selectbox("Select Correct Gender", ["Male", "Female"])
+
+        if st.form_submit_button("Update Gender"):
+            if not fix_id:
+                st.error("Please enter a Student ID.")
+            else:
+                # Optional: Check if student belongs to this teacher's class
+                # (Remove this check if you want teachers to fix ANY student)
+                student_check = next((s for s in students if s['student_id'] == fix_id), None)
+                
+                if not student_check:
+                    st.error("Student ID not found.")
+                elif student_check['grade'] != teacher['grade'] or student_check['student_class'] != teacher['class']:
+                    st.warning(f"Note: This student is in Grade {student_check['grade']} {student_check['student_class']}, not your class. Proceeding with update...")
+                    # We allow the update anyway, but gave a warning.
+                    with sqlite3.connect(DB_FILE) as conn:
+                        conn.execute("UPDATE students SET gender = ? WHERE student_id = ?", (new_gender, fix_id))
+                        conn.commit()
+                    st.success(f"Gender for {fix_id} updated to {new_gender}.")
+                else:
+                    # Student is in their class, update immediately
+                    with sqlite3.connect(DB_FILE) as conn:
+                        conn.execute("UPDATE students SET gender = ? WHERE student_id = ?", (new_gender, fix_id))
+                        conn.commit()
+                    st.success(f"Gender for {student_check['name']} ({fix_id}) updated to {new_gender}.")
+                    st.rerun()
     with st.form("add_student_to_class_form"):
         st.markdown(f"**Assign an Existing Student to Your Class (Grade {teacher['grade']} {teacher['class']})**")
         student_id_to_add = st.text_input("Enter Student ID to assign")
