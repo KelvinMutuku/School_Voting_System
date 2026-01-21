@@ -679,7 +679,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
     st.markdown("---")
     # --- Manage Candidates ---
     st.subheader("Manage Candidates")
-    all_position_names = list(positions.keys())
+    all_position_names = sorted(list(positions.keys()))
     if not all_position_names:
         st.warning("No positions created yet. Add a position above.")
     else:
@@ -698,7 +698,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
         else:
             st.info("No candidates for this position yet.")
         with st.form("manage_candidates_form"):
-            candidate_id = st.text_input("Student ID to Add/Remove")
+            candidate_id = st.text_input("Student ID to Add/Remove").strip()
             col1, col2 = st.columns(2)
             with col1:
                 if st.form_submit_button("Add Candidate"):
