@@ -661,7 +661,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                 st.rerun()
     with st.form("add_position_form"):
         new_position_name = st.text_input("New Position Name")
-        grade_options = {0: "All Grades", 7: "Grade 7", 8: "Grade 8", 9: "Grade 9", 10: "Grade 10"}
+        grade_options = {0: "All Grades", 7: "Grade 7", 8: "Grade 8", 9: "Grade 9"}
         selected_grade = st.selectbox("Assign to Grade", options=list(grade_options.keys()), format_func=lambda x: grade_options[x])
         selected_stream = st.selectbox("Assign to Stream (optional)", options=[None] + STREAMS, format_func=lambda x: "None (Grade/School-wide)" if x is None else x)
         
