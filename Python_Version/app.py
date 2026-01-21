@@ -87,9 +87,7 @@ def init_db():
                 student_id TEXT PRIMARY KEY,
                 academics INTEGER DEFAULT 0,
                 discipline INTEGER DEFAULT 0,
-                clubs INTEGER DEFAULT 0,
                 community_service INTEGER DEFAULT 0,
-                teacher INTEGER DEFAULT 0,
                 leadership INTEGER DEFAULT 0,
                 public_speaking INTEGER DEFAULT 0,
                 FOREIGN KEY (student_id) REFERENCES students (student_id)
@@ -170,8 +168,8 @@ def seed_data(conn):
     if cursor.fetchone()[0] == 0:
         weights_data = [
             ('student_votes', 30), ('academics', 15), ('discipline', 10),
-            ('clubs', 10), ('community_service', 5), ('teacher', 10),
-            ('leadership', 10), ('public_speaking', 10)
+             ('community_service', 5),
+            ('leadership', 10), ('public_speaking', 30)
         ]
         cursor.executemany("INSERT INTO weights (name, value) VALUES (?, ?)", weights_data)
         st.success("Default weights seeded.")
@@ -273,8 +271,8 @@ def import_backup(data):
         # Insert metrics
         for student_id, m in data['metrics'].items():
             cursor.execute(
-                "INSERT INTO metrics (student_id, academics, discipline, clubs, community_service, teacher, leadership, public_speaking) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (student_id, m['academics'], m['discipline'], m['clubs'], m['community_service'], m['teacher'], m['leadership'], m['public_speaking'])
+                "INSERT INTO metrics (student_id, academics, discipline, community_service, leadership, public_speaking) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (student_id, m['academics'], m['discipline'], m['community_service'], m['leadership'], m['public_speaking'])
             )
         
         conn.commit()
@@ -289,16 +287,14 @@ def render_about_page():
     * **Student Votes:** 30%
     * **Academics:** 15%
     * **Discipline:** 10%
-    * **Clubs:** 10%
     * **Community Service:** 5%
-    * **Teacher:** 10%
     * **Leadership:** 10%
-    * **Public Speaking:** 10%
+    * **Public Speaking:** 30%
     ### How it works
     * Students register with their ID and password, then vote by position. Some positions are school-wide, while others (like Class Prefect) are restricted to voters of a specific grade and stream.
     * Teachers record each student's metric scores (0–100).
     * The system computes Final Score per candidate:
-        `Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd + Clubs%×Wc + CommunityService%×Wcs + Teacher%×Wt + Leadership%×Wl + PublicSpeaking%×Wp`
+        `Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd +  CommunityService%×Wcs + Leadership%×Wl + PublicSpeaking%×Wp`
     * The candidate with the highest Final Score wins each position. The system is transparent and reproducible.
     """)
     st.image(IMG_PATH)
@@ -489,9 +485,7 @@ def render_teacher_page(teachers, students, metrics):
                 metric_inputs[s['student_id']] = {
                     'academics': cols[0].number_input("Academics", 0, 100, student_metrics.get('academics', 0), key=f"{s['student_id']}_acad"),
                     'discipline': cols[1].number_input("Discipline", 0, 100, student_metrics.get('discipline', 0), key=f"{s['student_id']}_disc"),
-                    'clubs': cols[2].number_input("Clubs", 0, 100, student_metrics.get('clubs', 0), key=f"{s['student_id']}_clubs"),
                     'community_service': cols[3].number_input("Community", 0, 100, student_metrics.get('community_service', 0), key=f"{s['student_id']}_comm"),
-                    'teacher': cols[0].number_input("Teacher Score", 0, 100, student_metrics.get('teacher', 0), key=f"{s['student_id']}_teach"),
                     'leadership': cols[1].number_input("Leadership", 0, 100, student_metrics.get('leadership', 0), key=f"{s['student_id']}_lead"),
                     'public_speaking': cols[2].number_input("Public Speaking", 0, 100, student_metrics.get('public_speaking', 0), key=f"{s['student_id']}_speak"),
                 }
@@ -501,9 +495,9 @@ def render_teacher_page(teachers, students, metrics):
                     cursor = conn.cursor()
                     for student_id, scores in metric_inputs.items():
                         cursor.execute("""
-                            INSERT OR REPLACE INTO metrics (student_id, academics, discipline, clubs, community_service, teacher, leadership, public_speaking)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (student_id, scores['academics'], scores['discipline'], scores['clubs'], scores['community_service'], scores['teacher'], scores['leadership'], scores['public_speaking']))
+                            INSERT OR REPLACE INTO metrics (student_id, academics, discipline, community_service, leadership, public_speaking)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (student_id, scores['academics'], scores['discipline'], scores['community_service'], scores['leadership'], scores['public_speaking']))
                     conn.commit()
                 st.success("All metric scores have been saved successfully!")
                 st.rerun()
@@ -811,28 +805,47 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                     st.error("Teacher username already exists.")
     st.markdown("---")
     # --- Manage Weights ---
+# --- Manage Weights ---
     st.subheader("Manage Weights (Must total 100%)")
     with st.form("weights_form"):
+        # 1. Define exactly what we want to keep
+        allowed_keys = ['student_votes', 'academics', 'discipline', 'community_service', 'leadership', 'public_speaking']
+        
+        # 2. Filter the current weights to show only these
+        # If a key is missing from DB, default it to 0
+        current_visible_weights = {k: weights.get(k, 0) for k in allowed_keys}
+        
         total_weight = 0
         new_weights = {}
         cols = st.columns(2)
-        weight_names = list(weights.keys())
-        for i, (name, value) in enumerate(weights.items()):
+        
+        # 3. Create inputs only for the allowed keys
+        for i, name in enumerate(allowed_keys):
             with cols[i % 2]:
-                new_weights[name] = st.number_input(name.replace('_', ' ').title(), min_value=0, max_value=100, value=value)
+                # Use the value from DB, or 0 if not found
+                val = current_visible_weights[name]
+                label = name.replace('_', ' ').title()
+                new_weights[name] = st.number_input(label, min_value=0, max_value=100, value=val)
                 total_weight += new_weights[name]
+        
         st.info(f"**Total Weight:** {total_weight}%")
+        
         if st.form_submit_button("Save Weights"):
             if total_weight != 100:
-                st.error("Weights must sum to exactly 100.")
+                st.error(f"Weights must sum to exactly 100. Current total: {total_weight}")
             else:
                 with sqlite3.connect(DB_FILE) as conn:
+                    # A. Update the allowed weights
                     for name, value in new_weights.items():
-                        conn.execute("UPDATE weights SET value = ? WHERE name = ?", (value, name))
+                        # Insert or Update (upsert) to ensure they exist
+                        conn.execute("INSERT OR REPLACE INTO weights (name, value) VALUES (?, ?)", (name, value))
+                    
+                    # B. NUKE the unwanted weights from the DB so they are gone forever
+                    conn.execute("DELETE FROM weights WHERE name IN ('clubs', 'teacher')")
                     conn.commit()
-                st.success("Weights updated successfully.")
+                    
+                st.success("Weights updated successfully! (Clubs and Teacher removed from DB)")
                 st.rerun()
-    st.markdown("---")
     # --- Security & Data ---
     st.subheader("Security & Data")
     with st.form("update_pin_form"):
@@ -1003,17 +1016,17 @@ def render_results_page(positions, votes, settings, weights, metrics):
                 votes_received = vote_counts.get(student_id, 0)
                 vote_percentage = (votes_received / total_votes * 100) if total_votes > 0 else 0
                 candidate_metrics = metrics.get(student_id, {
-                    'academics': 0, 'discipline': 0, 'clubs': 0,
-                    'community_service': 0, 'teacher': 0, 'leadership': 0,
+                    'academics': 0, 'discipline': 0, 
+                    'community_service': 0, 'leadership': 0,
                     'public_speaking': 0
                 })
                 final_score = (
                     (vote_percentage * weights.get('student_votes', 0)) +
                     (candidate_metrics['academics'] * weights.get('academics', 0)) +
                     (candidate_metrics['discipline'] * weights.get('discipline', 0)) +
-                    (candidate_metrics['clubs'] * weights.get('clubs', 0)) +
+                    #
                     (candidate_metrics['community_service'] * weights.get('community_service', 0)) +
-                    (candidate_metrics['teacher'] * weights.get('teacher', 0)) +
+                    #
                     (candidate_metrics['leadership'] * weights.get('leadership', 0)) +
                     (candidate_metrics['public_speaking'] * weights.get('public_speaking', 0))
                 ) / 100.0
@@ -1022,9 +1035,9 @@ def render_results_page(positions, votes, settings, weights, metrics):
                     'Vote %': f"{vote_percentage:.2f}",
                     'Academics': candidate_metrics['academics'],
                     'Discipline': candidate_metrics['discipline'],
-                    'Clubs': candidate_metrics['clubs'],
+                    #'Clubs': candidate_metrics['clubs'],
                     'Comm. Service': candidate_metrics['community_service'],
-                    'Teacher': candidate_metrics['teacher'],
+                    #'Teacher': candidate_metrics['teacher'],
                     'Leadership': candidate_metrics['leadership'],
                     'Public Speaking': candidate_metrics['public_speaking'],
                     'Final Score': final_score
@@ -1042,7 +1055,7 @@ def render_results_page(positions, votes, settings, weights, metrics):
                 st.info("No votes yet for this position.")
     else:
         st.subheader("Final Computed Results")
-        csv_lines = ["Position,Candidate,Student Votes,Academics,Discipline,Clubs,Community Service,Teacher,Leadership,Public Speaking,Final Score"]
+        csv_lines = ["Position,Candidate,Student Votes,Academics,Discipline,Community Service,Leadership,Public Speaking,Final Score"]
         for position_name, position_data in positions.items():
             st.markdown(f"### Results for {position_name}")
             
@@ -1067,17 +1080,17 @@ def render_results_page(positions, votes, settings, weights, metrics):
                 candidate_votes = vote_counts.get(student_id, 0)
                 vote_score = (candidate_votes / total_position_votes * 100) if total_position_votes > 0 else 0
                 candidate_metrics = metrics.get(student_id, {
-                    'academics': 0, 'discipline': 0, 'clubs': 0,
-                    'community_service': 0, 'teacher': 0, 'leadership': 0,
+                    'academics': 0, 'discipline': 0, 
+                    'community_service': 0,  'leadership': 0,
                     'public_speaking': 0
                 })
                 final_score = (
                     (vote_score * weights.get('student_votes', 0)) +
                     (candidate_metrics['academics'] * weights.get('academics', 0)) +
                     (candidate_metrics['discipline'] * weights.get('discipline', 0)) +
-                    (candidate_metrics['clubs'] * weights.get('clubs', 0)) +
+                    #(candidate_metrics['clubs'] * weights.get('clubs', 0)) +
                     (candidate_metrics['community_service'] * weights.get('community_service', 0)) +
-                    (candidate_metrics['teacher'] * weights.get('teacher', 0)) +
+                    #(candidate_metrics['teacher'] * weights.get('teacher', 0)) +
                     (candidate_metrics['leadership'] * weights.get('leadership', 0)) +
                     (candidate_metrics['public_speaking'] * weights.get('public_speaking', 0))
                 ) / 100.0
@@ -1085,20 +1098,20 @@ def render_results_page(positions, votes, settings, weights, metrics):
                     'Candidate': name, 'Vote %': f"{vote_score:.2f}",
                     'Academics': candidate_metrics['academics'],
                     'Discipline': candidate_metrics['discipline'],
-                    'Clubs': candidate_metrics['clubs'],
+                    #'Clubs': candidate_metrics['clubs'],
                     'Comm. Service': candidate_metrics['community_service'],
-                    'Teacher': candidate_metrics['teacher'],
+                    #'Teacher': candidate_metrics['teacher'],
                     'Public Speaking': candidate_metrics['public_speaking'],
                     'Leadership': candidate_metrics['leadership'],
                     'Final Score': final_score
                 })
                 
-                csv_lines.append(f"{position_name},{name},{vote_score:.2f}%,{candidate_metrics['academics']},{candidate_metrics['discipline']},{candidate_metrics['clubs']},{candidate_metrics['community_service']},{candidate_metrics['teacher']},{candidate_metrics['leadership']},{candidate_metrics['public_speaking']},{final_score:.2f}")
+                csv_lines.append(f"{position_name},{name},{vote_score:.2f}%,{candidate_metrics['academics']},{candidate_metrics['discipline']},{candidate_metrics['community_service']},{candidate_metrics['leadership']},{candidate_metrics['public_speaking']},{final_score:.2f}")
             if not results_data:
                 st.info("No votes have been cast for this position yet.")
                 continue
             results_df = pd.DataFrame(results_data).sort_values(by='Final Score', ascending=False).reset_index(drop=True)
-            display_columns = ['Candidate', 'Final Score', 'Vote %', 'Academics', 'Discipline', 'Leadership', 'Public Speaking', 'Clubs', 'Comm. Service', 'Teacher']
+            display_columns = ['Candidate', 'Final Score', 'Vote %', 'Academics', 'Discipline', 'Leadership', 'Public Speaking', 'Comm. Service']
             existing_columns = [col for col in display_columns if col in results_df.columns]
             results_df = results_df[existing_columns]
             if not results_df.empty:
