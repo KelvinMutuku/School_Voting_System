@@ -273,10 +273,10 @@ def import_backup(data):
         for name, value in data['weights'].items():
             cursor.execute("INSERT INTO weights (name, value) VALUES (?, ?)", (name, value))
         
-        # Insert metrics
+        # --- FIX IS HERE: Reduced ? from 8 to 6 ---
         for student_id, m in data['metrics'].items():
             cursor.execute(
-                "INSERT INTO metrics (student_id, academics, discipline, community_service, leadership, public_speaking) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO metrics (student_id, academics, discipline, community_service, leadership, public_speaking) VALUES (?, ?, ?, ?, ?, ?)",
                 (student_id, m['academics'], m['discipline'], m['community_service'], m['leadership'], m['public_speaking'])
             )
         
@@ -1032,6 +1032,7 @@ def render_results_page(positions, votes, settings, weights, metrics):
     st.markdown(f"**Voting Status:** {'Open' if voting_is_open else 'Closed'}")
     st.info(f"Results page auto-refreshes every {REFRESH_INTERVAL} seconds to show live updates.")
 
+    # --- HELPER: Get Metrics (Handles Single OR Joint Tickets) ---
     def get_candidate_metrics(student_id):
         """
         Fetches metrics for a candidate. 
@@ -1057,7 +1058,8 @@ def render_results_page(positions, votes, settings, weights, metrics):
         else:
             # Single Candidate
             return metrics.get(student_id, default_m)
-        # --- HELPER: Calculate Score ---
+
+    # --- HELPER: Calculate Score ---
     def calculate_final_score(c_metrics, vote_percentage):
         score = (
             (vote_percentage * weights.get('student_votes', 0)) +
@@ -1068,14 +1070,15 @@ def render_results_page(positions, votes, settings, weights, metrics):
             (c_metrics.get('public_speaking', 0) * weights.get('public_speaking', 0))
         ) / 100.0
         return score
+
     # --- LOGIC: Render Tables ---
     if voting_is_open:
         st.subheader("Live Computed Results (Student Votes + Criteria)")
     else:
         st.subheader("Final Computed Results")
 
-    # If closed, we prepare CSV lines
-    csv_lines = ["Position,Candidate,Vote %,Academics,Discipline,Community Service,Leadership,Public Speaking,Final Score"]
+    # Prepare CSV Header with exact About Page names
+    csv_lines = ["Position,Candidate,Student Votes,Academics,Discipline,Community Service,Leadership,Public Speaking,Final Score"]
 
     for position_name, position_data in positions.items():
         st.markdown(f"### {position_name}")
@@ -1084,6 +1087,7 @@ def render_results_page(positions, votes, settings, weights, metrics):
         if not candidates:
             st.info("No candidates for this position.")
             continue
+        
         # 1. Tally Votes
         vote_counts = {c['student_id']: 0 for c in candidates}
         total_votes = 0
@@ -1106,24 +1110,25 @@ def render_results_page(positions, votes, settings, weights, metrics):
             votes_received = vote_counts.get(c_id, 0)
             vote_percentage = (votes_received / total_votes * 100) if total_votes > 0 else 0
             
-            # Get Metrics (handling joint tickets correctly now)
+            # Get Metrics
             m = get_candidate_metrics(c_id)
             
             # Calculate Final Score
             final_score = calculate_final_score(m, vote_percentage)
             
+            # Append data with keys exactly matching About Page
             tally_data.append({
                 'Candidate': c_name,
-                'Vote %': f"{vote_percentage:.2f}",
+                'Student Votes': f"{vote_percentage:.2f}",   # Renamed from 'Vote %'
                 'Academics': f"{m.get('academics', 0):.1f}",
                 'Discipline': f"{m.get('discipline', 0):.1f}",
-                'Comm. Service': f"{m.get('community_service', 0):.1f}",
+                'Community Service': f"{m.get('community_service', 0):.1f}", # Renamed from 'Comm. Service'
                 'Leadership': f"{m.get('leadership', 0):.1f}",
                 'Public Speaking': f"{m.get('public_speaking', 0):.1f}",
-                'Final Score': final_score # Keep as float for sorting
+                'Final Score': final_score
             })
             
-# Add to CSV string if needed
+            # Add to CSV string if needed
             if not voting_is_open:
                  csv_lines.append(f"{position_name},{c_name},{vote_percentage:.2f},{m.get('academics')},{m.get('discipline')},{m.get('community_service')},{m.get('leadership')},{m.get('public_speaking')},{final_score:.2f}")
 
