@@ -184,27 +184,32 @@ def fetch_data():
         # Fetch students
         cursor.execute("SELECT student_id, name, password, grade, student_class, gender, security_question, security_answer, has_voted FROM students")
         students = [{'student_id': row[0], 'name': row[1], 'password': row[2], 'grade': row[3], 'student_class': row[4], 'gender': row[5], 'security_question': row[6], 'security_answer': row[7], 'has_voted': bool(row[8])} for row in cursor.fetchall()]
+        
         # Fetch teachers
         cursor.execute("SELECT username, password, grade, class, security_question, security_answer FROM teachers")
         teachers = [{'username': row[0], 'password': row[1], 'grade': row[2], 'class': row[3], 'security_question': row[4], 'security_answer': row[5]} for row in cursor.fetchall()]
+        
         # Fetch positions
         cursor.execute("SELECT position_name, grade, student_class, candidates_json FROM positions")
         positions = {row[0]: {'grade': row[1], 'student_class': row[2], 'candidates': json.loads(row[3])} for row in cursor.fetchall()}
+        
         # Fetch votes
         cursor.execute("SELECT voter_id, votes_json FROM votes")
         votes = {row[0]: json.loads(row[1]) for row in cursor.fetchall()}
+        
         # Fetch settings
         cursor.execute("SELECT name, value FROM settings")
         settings = {row[0]: row[1] for row in cursor.fetchall()}
+        
         # Fetch weights
         cursor.execute("SELECT name, value FROM weights")
         weights = {row[0]: row[1] for row in cursor.fetchall()}
         
-        # Fetch metrics
-        cursor.execute("SELECT student_id, academics, discipline, clubs, community_service, teacher, leadership, public_speaking FROM metrics")
-        metrics = {row[0]: {'academics': row[1], 'discipline': row[2], 'clubs': row[3], 'community_service': row[4], 'teacher': row[5], 'leadership': row[6], 'public_speaking': row[7]} for row in cursor.fetchall()}
+        # --- FIX: Removed 'clubs' and 'teacher' to match init_db schema ---
+        cursor.execute("SELECT student_id, academics, discipline, community_service, leadership, public_speaking FROM metrics")
+        metrics = {row[0]: {'academics': row[1], 'discipline': row[2], 'community_service': row[3], 'leadership': row[4], 'public_speaking': row[5]} for row in cursor.fetchall()}
+        
     return students, teachers, positions, votes, settings, weights, metrics
-
 # --- JSON Backup/Import Functions ---
 def export_backup():
     students, teachers, positions, votes, settings, weights, metrics = fetch_data()
@@ -478,18 +483,37 @@ def render_teacher_page(teachers, students, metrics):
     else:
         with st.form("metrics_form"):
             metric_inputs = {}
+            # Header for clarity
+            cols = st.columns([2, 1, 1, 1, 1, 1])
+            cols[0].write("**Student Name**")
+            cols[1].write("Academics")
+            cols[2].write("Discipline")
+            cols[3].write("Comm. Svc")
+            cols[4].write("Leadership")
+            cols[5].write("Speaking")
+
             for s in class_students:
-                st.markdown(f"**{s['name']} ({s['student_id']})**")
-                cols = st.columns(4)
+                cols = st.columns([2, 1, 1, 1, 1, 1])
+                cols[0].write(f"{s['name']}\n({s['student_id']})")
+                
                 student_metrics = metrics.get(s['student_id'], {})
+                
+                # Capture inputs
+                academics = cols[1].number_input("Acad", 0, 100, student_metrics.get('academics', 0), key=f"{s['student_id']}_acad", label_visibility="collapsed")
+                discipline = cols[2].number_input("Disc", 0, 100, student_metrics.get('discipline', 0), key=f"{s['student_id']}_disc", label_visibility="collapsed")
+                comm_svc = cols[3].number_input("Comm", 0, 100, student_metrics.get('community_service', 0), key=f"{s['student_id']}_comm", label_visibility="collapsed")
+                leadership = cols[4].number_input("Lead", 0, 100, student_metrics.get('leadership', 0), key=f"{s['student_id']}_lead", label_visibility="collapsed")
+                speaking = cols[5].number_input("Speak", 0, 100, student_metrics.get('public_speaking', 0), key=f"{s['student_id']}_speak", label_visibility="collapsed")
+
                 metric_inputs[s['student_id']] = {
-                    'academics': cols[0].number_input("Academics", 0, 100, student_metrics.get('academics', 0), key=f"{s['student_id']}_acad"),
-                    'discipline': cols[1].number_input("Discipline", 0, 100, student_metrics.get('discipline', 0), key=f"{s['student_id']}_disc"),
-                    'community_service': cols[3].number_input("Community", 0, 100, student_metrics.get('community_service', 0), key=f"{s['student_id']}_comm"),
-                    'leadership': cols[1].number_input("Leadership", 0, 100, student_metrics.get('leadership', 0), key=f"{s['student_id']}_lead"),
-                    'public_speaking': cols[2].number_input("Public Speaking", 0, 100, student_metrics.get('public_speaking', 0), key=f"{s['student_id']}_speak"),
+                    'academics': academics,
+                    'discipline': discipline,
+                    'community_service': comm_svc,
+                    'leadership': leadership,
+                    'public_speaking': speaking,
                 }
-                st.markdown("---")
+                st.markdown("<hr style='margin: 5px 0'>", unsafe_allow_html=True)
+            
             if st.form_submit_button("Save All Metric Scores"):
                 with sqlite3.connect(DB_FILE) as conn:
                     cursor = conn.cursor()
