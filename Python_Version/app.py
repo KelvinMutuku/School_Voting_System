@@ -1032,136 +1032,125 @@ def render_results_page(positions, votes, settings, weights, metrics):
     st.markdown(f"**Voting Status:** {'Open' if voting_is_open else 'Closed'}")
     st.info(f"Results page auto-refreshes every {REFRESH_INTERVAL} seconds to show live updates.")
 
+    def get_candidate_metrics(student_id):
+        """
+        Fetches metrics for a candidate. 
+        If student_id contains '+', it splits the IDs, fetches both, and returns the average.
+        """
+        # Default zero-scores to avoid errors
+        default_m = {'academics': 0, 'discipline': 0, 'community_service': 0, 'leadership': 0, 'public_speaking': 0}
+        
+        if '+' in student_id:
+            # Joint Ticket (e.g., "KJS001+KJS002")
+            try:
+                id1, id2 = student_id.split('+')
+                m1 = metrics.get(id1.strip(), default_m)
+                m2 = metrics.get(id2.strip(), default_m)
+                
+                # Average the scores
+                avg_metrics = {}
+                for key in default_m.keys():
+                    avg_metrics[key] = (m1.get(key, 0) + m2.get(key, 0)) / 2.0
+                return avg_metrics
+            except:
+                return default_m
+        else:
+            # Single Candidate
+            return metrics.get(student_id, default_m)
+        # --- HELPER: Calculate Score ---
+    def calculate_final_score(c_metrics, vote_percentage):
+        score = (
+            (vote_percentage * weights.get('student_votes', 0)) +
+            (c_metrics.get('academics', 0) * weights.get('academics', 0)) +
+            (c_metrics.get('discipline', 0) * weights.get('discipline', 0)) +
+            (c_metrics.get('community_service', 0) * weights.get('community_service', 0)) +
+            (c_metrics.get('leadership', 0) * weights.get('leadership', 0)) +
+            (c_metrics.get('public_speaking', 0) * weights.get('public_speaking', 0))
+        ) / 100.0
+        return score
+    # --- LOGIC: Render Tables ---
     if voting_is_open:
         st.subheader("Live Computed Results (Student Votes + Criteria)")
-        for position_name, position_data in positions.items():
-            st.markdown(f"### {position_name}")
-            candidates = position_data['candidates']
-            
-            if not candidates:
-                st.info("No candidates for this position.")
-                continue
-            
-            vote_counts = {c['student_id']: 0 for c in candidates}
-            total_votes = 0
-            for voter_id, cast_votes in votes.items():
-                voted_candidate_name = cast_votes.get(position_name)
-                if voted_candidate_name:
-                    candidate_obj = next((c for c in candidates if c['name'] == voted_candidate_name), None)
-                    if candidate_obj:
-                        vote_counts[candidate_obj['student_id']] += 1
-                        total_votes += 1
-            
-            tally_data = []
-            for candidate in candidates:
-                student_id = candidate['student_id']
-                name = candidate['name']
-                votes_received = vote_counts.get(student_id, 0)
-                vote_percentage = (votes_received / total_votes * 100) if total_votes > 0 else 0
-                candidate_metrics = metrics.get(student_id, {
-                    'academics': 0, 'discipline': 0, 
-                    'community_service': 0, 'leadership': 0,
-                    'public_speaking': 0
-                })
-                final_score = (
-                    (vote_percentage * weights.get('student_votes', 0)) +
-                    (candidate_metrics['academics'] * weights.get('academics', 0)) +
-                    (candidate_metrics['discipline'] * weights.get('discipline', 0)) +
-                    #
-                    (candidate_metrics['community_service'] * weights.get('community_service', 0)) +
-                    #
-                    (candidate_metrics['leadership'] * weights.get('leadership', 0)) +
-                    (candidate_metrics['public_speaking'] * weights.get('public_speaking', 0))
-                ) / 100.0
-                tally_data.append({
-                    'Candidate': name,
-                    'Vote %': f"{vote_percentage:.2f}",
-                    'Academics': candidate_metrics['academics'],
-                    'Discipline': candidate_metrics['discipline'],
-                    #'Clubs': candidate_metrics['clubs'],
-                    'Comm. Service': candidate_metrics['community_service'],
-                    #'Teacher': candidate_metrics['teacher'],
-                    'Leadership': candidate_metrics['leadership'],
-                    'Public Speaking': candidate_metrics['public_speaking'],
-                    'Final Score': final_score
-                })
-            
-            if tally_data:
-                tally_df = pd.DataFrame(tally_data).sort_values(by='Final Score', ascending=False).reset_index(drop=True)
-                display_columns = ['Candidate', 'Final Score', 'Vote %', 'Academics', 'Discipline', 'Leadership', 'Public Speaking', 'Clubs', 'Comm. Service', 'Teacher']
-                existing_columns = [col for col in display_columns if col in tally_df.columns]
-                tally_df = tally_df[existing_columns]
-                if not tally_df.empty:
-                    st.success(f"**Leading: {tally_df.iloc[0]['Candidate']}** with a final score of **{tally_df.iloc[0]['Final Score']:.2f}**")
-                    st.dataframe(tally_df)
-            else:
-                st.info("No votes yet for this position.")
     else:
         st.subheader("Final Computed Results")
-        csv_lines = ["Position,Candidate,Student Votes,Academics,Discipline,Community Service,Leadership,Public Speaking,Final Score"]
-        for position_name, position_data in positions.items():
-            st.markdown(f"### Results for {position_name}")
+
+    # If closed, we prepare CSV lines
+    csv_lines = ["Position,Candidate,Vote %,Academics,Discipline,Community Service,Leadership,Public Speaking,Final Score"]
+
+    for position_name, position_data in positions.items():
+        st.markdown(f"### {position_name}")
+        candidates = position_data['candidates']
+        
+        if not candidates:
+            st.info("No candidates for this position.")
+            continue
+        # 1. Tally Votes
+        vote_counts = {c['student_id']: 0 for c in candidates}
+        total_votes = 0
+        for voter_id, cast_votes in votes.items():
+            voted_candidate_name = cast_votes.get(position_name)
+            if voted_candidate_name:
+                # Find the candidate object that matches the voted name
+                candidate_obj = next((c for c in candidates if c['name'] == voted_candidate_name), None)
+                if candidate_obj:
+                    vote_counts[candidate_obj['student_id']] += 1
+                    total_votes += 1
+        
+        # 2. Build Table Data
+        tally_data = []
+        for candidate in candidates:
+            c_id = candidate['student_id']
+            c_name = candidate['name']
             
-            candidates_list = position_data['candidates']
+            # Calculate Vote %
+            votes_received = vote_counts.get(c_id, 0)
+            vote_percentage = (votes_received / total_votes * 100) if total_votes > 0 else 0
             
-            if not candidates_list:
-                st.info("No candidates for this position.")
-                continue
-            vote_counts = {c['student_id']: 0 for c in candidates_list}
-            total_position_votes = 0
-            for voter_id, cast_votes in votes.items():
-                voted_candidate_name = cast_votes.get(position_name)
-                if voted_candidate_name:
-                    candidate_obj = next((c for c in candidates_list if c['name'] == voted_candidate_name), None)
-                    if candidate_obj:
-                        vote_counts[candidate_obj['student_id']] += 1
-                        total_position_votes += 1
-            results_data = []
-            for candidate in candidates_list:
-                student_id = candidate['student_id']
-                name = candidate['name']
-                candidate_votes = vote_counts.get(student_id, 0)
-                vote_score = (candidate_votes / total_position_votes * 100) if total_position_votes > 0 else 0
-                candidate_metrics = metrics.get(student_id, {
-                    'academics': 0, 'discipline': 0, 
-                    'community_service': 0,  'leadership': 0,
-                    'public_speaking': 0
-                })
-                final_score = (
-                    (vote_score * weights.get('student_votes', 0)) +
-                    (candidate_metrics['academics'] * weights.get('academics', 0)) +
-                    (candidate_metrics['discipline'] * weights.get('discipline', 0)) +
-                    #(candidate_metrics['clubs'] * weights.get('clubs', 0)) +
-                    (candidate_metrics['community_service'] * weights.get('community_service', 0)) +
-                    #(candidate_metrics['teacher'] * weights.get('teacher', 0)) +
-                    (candidate_metrics['leadership'] * weights.get('leadership', 0)) +
-                    (candidate_metrics['public_speaking'] * weights.get('public_speaking', 0))
-                ) / 100.0
-                results_data.append({
-                    'Candidate': name, 'Vote %': f"{vote_score:.2f}",
-                    'Academics': candidate_metrics['academics'],
-                    'Discipline': candidate_metrics['discipline'],
-                    #'Clubs': candidate_metrics['clubs'],
-                    'Comm. Service': candidate_metrics['community_service'],
-                    #'Teacher': candidate_metrics['teacher'],
-                    'Public Speaking': candidate_metrics['public_speaking'],
-                    'Leadership': candidate_metrics['leadership'],
-                    'Final Score': final_score
-                })
-                
-                csv_lines.append(f"{position_name},{name},{vote_score:.2f}%,{candidate_metrics['academics']},{candidate_metrics['discipline']},{candidate_metrics['community_service']},{candidate_metrics['leadership']},{candidate_metrics['public_speaking']},{final_score:.2f}")
-            if not results_data:
-                st.info("No votes have been cast for this position yet.")
-                continue
-            results_df = pd.DataFrame(results_data).sort_values(by='Final Score', ascending=False).reset_index(drop=True)
-            display_columns = ['Candidate', 'Final Score', 'Vote %', 'Academics', 'Discipline', 'Leadership', 'Public Speaking', 'Comm. Service']
-            existing_columns = [col for col in display_columns if col in results_df.columns]
-            results_df = results_df[existing_columns]
-            if not results_df.empty:
-                st.success(f"**Winner: {results_df.iloc[0]['Candidate']}** with a final score of **{results_df.iloc[0]['Final Score']:.2f}**")
-                st.dataframe(results_df)
-        csv_data = "\n".join(csv_lines)
-        st.download_button("Export Results (CSV)", data=csv_data, file_name="election_results.csv", mime="text/csv")
+            # Get Metrics (handling joint tickets correctly now)
+            m = get_candidate_metrics(c_id)
+            
+            # Calculate Final Score
+            final_score = calculate_final_score(m, vote_percentage)
+            
+            tally_data.append({
+                'Candidate': c_name,
+                'Vote %': f"{vote_percentage:.2f}",
+                'Academics': f"{m.get('academics', 0):.1f}",
+                'Discipline': f"{m.get('discipline', 0):.1f}",
+                'Comm. Service': f"{m.get('community_service', 0):.1f}",
+                'Leadership': f"{m.get('leadership', 0):.1f}",
+                'Public Speaking': f"{m.get('public_speaking', 0):.1f}",
+                'Final Score': final_score # Keep as float for sorting
+            })
+            
+# Add to CSV string if needed
+            if not voting_is_open:
+                 csv_lines.append(f"{position_name},{c_name},{vote_percentage:.2f},{m.get('academics')},{m.get('discipline')},{m.get('community_service')},{m.get('leadership')},{m.get('public_speaking')},{final_score:.2f}")
+
+        # 3. Render Dataframe
+        if tally_data:
+            # Sort by Final Score (Descending)
+            tally_df = pd.DataFrame(tally_data).sort_values(by='Final Score', ascending=False).reset_index(drop=True)
+            
+            # Identify the leader/winner
+            leader_name = tally_df.iloc[0]['Candidate']
+            leader_score = tally_df.iloc[0]['Final Score']
+            
+            # Format the float score for display
+            tally_df['Final Score'] = tally_df['Final Score'].map(lambda x: f"{x:.2f}")
+
+            if voting_is_open:
+                st.success(f"**Leading: {leader_name}** with a score of **{leader_score:.2f}**")
+            else:
+                st.success(f"**Winner: {leader_name}** with a score of **{leader_score:.2f}**")
+            
+            st.dataframe(tally_df)
+        else:
+            st.info("No candidates found.")
+
+    # 4. CSV Download Button (Only if voting is closed)
+    if not voting_is_open:
+        st.download_button("Export Results (CSV)", "\n".join(csv_lines), "election_results.csv", "text/csv")
 
 # --- Main Application Logic ---
 if __name__ == "__main__":
