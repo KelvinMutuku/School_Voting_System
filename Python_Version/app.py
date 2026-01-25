@@ -26,7 +26,7 @@ def init_db():
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
         
-        # Student table (includes gender)
+        # Student table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS students (
                 student_id TEXT PRIMARY KEY,
@@ -51,12 +51,12 @@ def init_db():
                 security_answer TEXT NOT NULL
             )
         ''')
-        # Position table (added student_class for stream-specific positions)
+        # Position table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS positions (
                 position_name TEXT PRIMARY KEY,
-                grade INTEGER, -- Can be 0 for school-wide
-                student_class TEXT, -- Can be NULL for non-class-specific
+                grade INTEGER,
+                student_class TEXT,
                 candidates_json TEXT
             )
         ''')
@@ -81,7 +81,7 @@ def init_db():
                 value INTEGER NOT NULL
             )
         ''')
-        # Metrics table
+        # Metrics table - Added 'locked' column
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS metrics (
                 student_id TEXT PRIMARY KEY,
@@ -90,10 +90,17 @@ def init_db():
                 community_service INTEGER DEFAULT 0,
                 leadership INTEGER DEFAULT 0,
                 public_speaking INTEGER DEFAULT 0,
+                locked INTEGER DEFAULT 0, 
                 FOREIGN KEY (student_id) REFERENCES students (student_id)
             )
         ''')
-        # Seed initial data
+        
+        # --- MIGRATION: Check if 'locked' column exists (for existing DBs) ---
+        cursor.execute("PRAGMA table_info(metrics)")
+        columns = [info[1] for info in cursor.fetchall()]
+        if 'locked' not in columns:
+            cursor.execute("ALTER TABLE metrics ADD COLUMN locked INTEGER DEFAULT 0")
+            
         seed_data(conn)
 
 def seed_data(conn):
@@ -205,9 +212,9 @@ def fetch_data():
         cursor.execute("SELECT name, value FROM weights")
         weights = {row[0]: row[1] for row in cursor.fetchall()}
         
-        # --- FIX: Removed 'clubs' and 'teacher' to match init_db schema ---
-        cursor.execute("SELECT student_id, academics, discipline, community_service, leadership, public_speaking FROM metrics")
-        metrics = {row[0]: {'academics': row[1], 'discipline': row[2], 'community_service': row[3], 'leadership': row[4], 'public_speaking': row[5]} for row in cursor.fetchall()}
+        # Fetch metrics (including locked)
+        cursor.execute("SELECT student_id, academics, discipline, community_service, leadership, public_speaking, locked FROM metrics")
+        metrics = {row[0]: {'academics': row[1], 'discipline': row[2], 'community_service': row[3], 'leadership': row[4], 'public_speaking': row[5], 'locked': bool(row[6])} for row in cursor.fetchall()}
         
     return students, teachers, positions, votes, settings, weights, metrics
 # --- JSON Backup/Import Functions ---
@@ -273,11 +280,12 @@ def import_backup(data):
         for name, value in data['weights'].items():
             cursor.execute("INSERT INTO weights (name, value) VALUES (?, ?)", (name, value))
         
-        # --- FIX IS HERE: Reduced ? from 8 to 6 ---
+        # Insert Metrics (Including Locked)
         for student_id, m in data['metrics'].items():
+            locked_val = m.get('locked', 1) # Default to 1 (locked) if importing old backup to be safe
             cursor.execute(
-                "INSERT INTO metrics (student_id, academics, discipline, community_service, leadership, public_speaking) VALUES (?, ?, ?, ?, ?, ?)",
-                (student_id, m['academics'], m['discipline'], m['community_service'], m['leadership'], m['public_speaking'])
+                "INSERT INTO metrics (student_id, academics, discipline, community_service, leadership, public_speaking, locked) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (student_id, m['academics'], m['discipline'], m['community_service'], m['leadership'], m['public_speaking'], int(locked_val))
             )
         
         conn.commit()
@@ -471,6 +479,7 @@ def render_teacher_page(teachers, students, metrics):
                         else:
                             st.error("Incorrect security answer.")
         return
+
     # --- TEACHER IS LOGGED IN ---
     teacher = st.session_state.logged_in_teacher
     st.success(f"Welcome, {teacher['username']} (Grade {teacher['grade']} {teacher['class']})!")
@@ -478,12 +487,30 @@ def render_teacher_page(teachers, students, metrics):
     st.subheader(f"Enter Metric Scores for Grade {teacher['grade']} {teacher['class']} (0-100)")
     class_students = [s for s in students if s['grade'] == teacher['grade'] and s['student_class'] == teacher['class']]
     
+    # --- CRITICAL FIX: Sync Session State with Database ---
+    # This ensures input boxes show the latest Admin updates, not stale user input.
+    for s in class_students:
+        s_id = s['student_id']
+        m_data = metrics.get(s_id, {})
+        # Map our UI keys to DB columns
+        sync_map = {
+            f"{s_id}_acad": 'academics',
+            f"{s_id}_disc": 'discipline',
+            f"{s_id}_comm": 'community_service',
+            f"{s_id}_lead": 'leadership',
+            f"{s_id}_speak": 'public_speaking'
+        }
+        for ss_key, db_col in sync_map.items():
+            # If the widget key exists in session state, force update it with DB value
+            if ss_key in st.session_state:
+                st.session_state[ss_key] = m_data.get(db_col, 0)
+
     if not class_students:
         st.info("There are no students registered in your class yet.")
     else:
         with st.form("metrics_form"):
             metric_inputs = {}
-            # Header for clarity
+            # Header
             cols = st.columns([2, 1, 1, 1, 1, 1])
             cols[0].write("**Student Name**")
             cols[1].write("Academics")
@@ -491,43 +518,60 @@ def render_teacher_page(teachers, students, metrics):
             cols[3].write("Comm. Svc")
             cols[4].write("Leadership")
             cols[5].write("Speaking")
+            
+            any_unlocked = False
 
             for s in class_students:
                 cols = st.columns([2, 1, 1, 1, 1, 1])
-                cols[0].write(f"{s['name']}\n({s['student_id']})")
-                
                 student_metrics = metrics.get(s['student_id'], {})
+                is_locked = student_metrics.get('locked', False)
                 
-                # Capture inputs
-                academics = cols[1].number_input("Acad", 0, 100, student_metrics.get('academics', 0), key=f"{s['student_id']}_acad", label_visibility="collapsed")
-                discipline = cols[2].number_input("Disc", 0, 100, student_metrics.get('discipline', 0), key=f"{s['student_id']}_disc", label_visibility="collapsed")
-                comm_svc = cols[3].number_input("Comm", 0, 100, student_metrics.get('community_service', 0), key=f"{s['student_id']}_comm", label_visibility="collapsed")
-                leadership = cols[4].number_input("Lead", 0, 100, student_metrics.get('leadership', 0), key=f"{s['student_id']}_lead", label_visibility="collapsed")
-                speaking = cols[5].number_input("Speak", 0, 100, student_metrics.get('public_speaking', 0), key=f"{s['student_id']}_speak", label_visibility="collapsed")
+                # Show Name and Status
+                status_icon = "🔒" if is_locked else "✏️"
+                cols[0].write(f"{status_icon} {s['name']}\n({s['student_id']})")
+                
+                disabled = is_locked
+                if not is_locked:
+                    any_unlocked = True
 
-                metric_inputs[s['student_id']] = {
-                    'academics': academics,
-                    'discipline': discipline,
-                    'community_service': comm_svc,
-                    'leadership': leadership,
-                    'public_speaking': speaking,
-                }
+                # Capture inputs (Values are now synced above)
+                academics = cols[1].number_input("Acad", 0, 100, student_metrics.get('academics', 0), key=f"{s['student_id']}_acad", label_visibility="collapsed", disabled=disabled)
+                discipline = cols[2].number_input("Disc", 0, 100, student_metrics.get('discipline', 0), key=f"{s['student_id']}_disc", label_visibility="collapsed", disabled=disabled)
+                comm_svc = cols[3].number_input("Comm", 0, 100, student_metrics.get('community_service', 0), key=f"{s['student_id']}_comm", label_visibility="collapsed", disabled=disabled)
+                leadership = cols[4].number_input("Lead", 0, 100, student_metrics.get('leadership', 0), key=f"{s['student_id']}_lead", label_visibility="collapsed", disabled=disabled)
+                speaking = cols[5].number_input("Speak", 0, 100, student_metrics.get('public_speaking', 0), key=f"{s['student_id']}_speak", label_visibility="collapsed", disabled=disabled)
+
+                if not is_locked:
+                    metric_inputs[s['student_id']] = {
+                        'academics': academics,
+                        'discipline': discipline,
+                        'community_service': comm_svc,
+                        'leadership': leadership,
+                        'public_speaking': speaking,
+                    }
                 st.markdown("<hr style='margin: 5px 0'>", unsafe_allow_html=True)
             
-            if st.form_submit_button("Save All Metric Scores"):
-                with sqlite3.connect(DB_FILE) as conn:
-                    cursor = conn.cursor()
-                    for student_id, scores in metric_inputs.items():
-                        cursor.execute("""
-                            INSERT OR REPLACE INTO metrics (student_id, academics, discipline, community_service, leadership, public_speaking)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """, (student_id, scores['academics'], scores['discipline'], scores['community_service'], scores['leadership'], scores['public_speaking']))
-                    conn.commit()
-                st.success("All metric scores have been saved successfully!")
-                st.rerun()
+            if any_unlocked:
+                st.warning("⚠️ Warning: Once you click 'Submit', these scores will be LOCKED.")
+                if st.form_submit_button("Submit & Lock Scores"):
+                    with sqlite3.connect(DB_FILE) as conn:
+                        cursor = conn.cursor()
+                        for student_id, scores in metric_inputs.items():
+                            cursor.execute("""
+                                INSERT OR REPLACE INTO metrics (student_id, academics, discipline, community_service, leadership, public_speaking, locked)
+                                VALUES (?, ?, ?, ?, ?, ?, 1)
+                            """, (student_id, scores['academics'], scores['discipline'], scores['community_service'], scores['leadership'], scores['public_speaking']))
+                        conn.commit()
+                    st.success("Scores submitted and locked successfully!")
+                    st.rerun()
+            else:
+                st.info("All scores for this class have been submitted and locked. Please contact Admin if edits are required.")
+                st.form_submit_button("Scores Locked", disabled=True)
+
     # --- Student Password Management ---
     st.markdown("---")
     st.subheader("Change or Reset Student Passwords")
+    # ... (Keep remaining Teacher Page code as is)
     if not class_students:
         st.info("No students in your class to manage.")
     else:
@@ -553,7 +597,6 @@ def render_teacher_page(teachers, students, metrics):
     # --- Class Roster Management ---
     st.markdown("---")
     st.subheader("Manage Class Roster")
-    # [PASTE THIS INSIDE render_teacher_page, AFTER "Manage Class Roster"]
 
     st.markdown("---")
     st.subheader("Fix Student Gender")
@@ -561,7 +604,6 @@ def render_teacher_page(teachers, students, metrics):
 
     with st.form("teacher_fix_gender_form"):
         col1, col2 = st.columns([1, 1])
-        # .strip() prevents errors if they copy-paste with spaces
         fix_id = col1.text_input("Enter Student ID (e.g., KJS001)").strip()
         new_gender = col2.selectbox("Select Correct Gender", ["Male", "Female"])
 
@@ -569,21 +611,16 @@ def render_teacher_page(teachers, students, metrics):
             if not fix_id:
                 st.error("Please enter a Student ID.")
             else:
-                # Optional: Check if student belongs to this teacher's class
-                # (Remove this check if you want teachers to fix ANY student)
                 student_check = next((s for s in students if s['student_id'] == fix_id), None)
-                
                 if not student_check:
                     st.error("Student ID not found.")
                 elif student_check['grade'] != teacher['grade'] or student_check['student_class'] != teacher['class']:
                     st.warning(f"Note: This student is in Grade {student_check['grade']} {student_check['student_class']}, not your class. Proceeding with update...")
-                    # We allow the update anyway, but gave a warning.
                     with sqlite3.connect(DB_FILE) as conn:
                         conn.execute("UPDATE students SET gender = ? WHERE student_id = ?", (new_gender, fix_id))
                         conn.commit()
                     st.success(f"Gender for {fix_id} updated to {new_gender}.")
                 else:
-                    # Student is in their class, update immediately
                     with sqlite3.connect(DB_FILE) as conn:
                         conn.execute("UPDATE students SET gender = ? WHERE student_id = ?", (new_gender, fix_id))
                         conn.commit()
@@ -669,6 +706,117 @@ def render_teacher_page(teachers, students, metrics):
         st.session_state.teacher_reset_username = None
         st.rerun()
 
+def render_super_admin_page(settings, students, metrics):
+    st.header("Super Admin Panel")
+    st.markdown("---")
+    
+    # --- Login Logic ---
+    if not st.session_state.get('logged_in_super_admin'):
+        st.subheader("Super Admin Login")
+        st.info("Please enter the Master PIN to access sensitive controls.")
+        pin = st.text_input("Enter Super Admin PIN", type="password", key="sa_pin")
+        if st.button("Login", key="sa_login_btn"):
+            # We use the same global PIN from settings
+            if pin == settings.get('pin'):
+                st.session_state.logged_in_super_admin = True
+                st.rerun()
+            else:
+                st.error("Invalid PIN.")
+        return
+
+    st.success("Super Admin access granted.")
+    
+    # --- Logout Button ---
+    if st.button("Logout", key="sa_logout"):
+        st.session_state.logged_in_super_admin = False
+        st.rerun()
+        
+    st.markdown("---")
+    
+    # --- MANAGE TEACHER VOTES (Override) ---
+    st.subheader("Manage Teacher Votes (Override)")
+    st.info("As Super Admin, you can edit student metric scores even if the teacher has locked them.")
+    
+    # Filter for finding a student
+    col_grade, col_stream = st.columns(2)
+    filter_grade = col_grade.selectbox("Filter by Grade", [7, 8, 9], key="sa_metrics_grade")
+    filter_stream = col_stream.selectbox("Filter by Stream", STREAMS, key="sa_metrics_stream")
+    
+    adm_students = [s for s in students if s['grade'] == filter_grade and s['student_class'] == filter_stream]
+    
+    if adm_students:
+        student_opts = {f"{s['name']} ({s['student_id']})": s['student_id'] for s in adm_students}
+        selected_s_key = st.selectbox("Select Student to Edit", options=list(student_opts.keys()), key="sa_select_student")
+        
+        if selected_s_key:
+            s_id = student_opts[selected_s_key]
+            # Fetch fresh metrics from DB
+            with sqlite3.connect(DB_FILE) as conn:
+                c = conn.cursor()
+                c.execute("SELECT academics, discipline, community_service, leadership, public_speaking, locked FROM metrics WHERE student_id = ?", (s_id,))
+                row = c.fetchone()
+                if row:
+                    curr_m = {'academics': row[0], 'discipline': row[1], 'community_service': row[2], 'leadership': row[3], 'public_speaking': row[4], 'locked': row[5]}
+                else:
+                    curr_m = {'academics': 0, 'discipline': 0, 'community_service': 0, 'leadership': 0, 'public_speaking': 0, 'locked': 0}
+
+            st.markdown(f"**Editing Scores for: {selected_s_key}**")
+            if curr_m['locked']:
+                st.warning("Status: LOCKED by Teacher (You can override)")
+            else:
+                st.success("Status: Open")
+
+            with st.form("super_admin_edit_metrics"):
+                c1, c2, c3, c4, c5 = st.columns(5)
+                n_acad = c1.number_input("Academics", 0, 100, curr_m['academics'])
+                n_disc = c2.number_input("Discipline", 0, 100, curr_m['discipline'])
+                n_comm = c3.number_input("Comm. Svc", 0, 100, curr_m['community_service'])
+                n_lead = c4.number_input("Leadership", 0, 100, curr_m['leadership'])
+                n_speak = c5.number_input("Speaking", 0, 100, curr_m['public_speaking'])
+                
+                # Option to unlock
+                unlock_student = st.checkbox("Unlock this student (Allow teacher to edit again)?")
+
+                if st.form_submit_button("Update Scores"):
+                    new_lock_status = 0 if unlock_student else 1 
+                    with sqlite3.connect(DB_FILE) as conn:
+                        conn.execute("""
+                            INSERT OR REPLACE INTO metrics (student_id, academics, discipline, community_service, leadership, public_speaking, locked)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (s_id, n_acad, n_disc, n_comm, n_lead, n_speak, new_lock_status))
+                        conn.commit()
+                    st.success("Scores updated successfully.")
+                    st.rerun()
+    else:
+        st.info("No students found in this class.")
+
+    st.markdown("---")
+    
+    # --- CHANGE ADMIN PIN (New Feature) ---
+    st.subheader("Security Settings")
+    with st.expander("Change Admin PIN"):
+        with st.form("change_pin_form"):
+            current_pin = st.text_input("Current PIN", type="password")
+            new_pin = st.text_input("New PIN", type="password")
+            confirm_pin = st.text_input("Confirm New PIN", type="password")
+            
+            if st.form_submit_button("Update PIN"):
+                if not all([current_pin, new_pin, confirm_pin]):
+                    st.error("Please fill in all fields.")
+                elif current_pin != settings.get('pin'):
+                    st.error("Incorrect current PIN.")
+                elif new_pin != confirm_pin:
+                    st.error("New PINs do not match.")
+                elif len(new_pin) < 4:
+                    st.error("PIN must be at least 4 characters.")
+                else:
+                    with sqlite3.connect(DB_FILE) as conn:
+                        conn.execute("UPDATE settings SET value = ? WHERE name = 'pin'", (new_pin,))
+                        conn.commit()
+                    st.success("Admin PIN updated successfully. Please re-login.")
+                    st.session_state.logged_in_super_admin = False
+                    st.rerun()
+        
 def render_admin_page(settings, students, positions, votes, teachers, weights):
     st.header("Admin Panel")
     
@@ -724,7 +872,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                 try:
                     with sqlite3.connect(DB_FILE) as conn:
                         conn.execute("INSERT INTO positions (position_name, grade, student_class, candidates_json) VALUES (?, ?, ?, ?)",
-                                     (new_position_name, selected_grade, selected_stream, json.dumps([])))
+                                (new_position_name, selected_grade, selected_stream, json.dumps([])))
                         conn.commit()
                     st.success(f"Position '{new_position_name}' added.")
                     st.rerun()
@@ -1161,12 +1309,15 @@ def render_results_page(positions, votes, settings, weights, metrics):
 if __name__ == "__main__":
     init_db()
     
+    # Session State Initialization
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 'about'
     if 'logged_in_teacher' not in st.session_state:
         st.session_state.logged_in_teacher = None
     if 'logged_in_admin' not in st.session_state:
         st.session_state.logged_in_admin = False
+    if 'logged_in_super_admin' not in st.session_state:  # NEW
+        st.session_state.logged_in_super_admin = False
     if 'current_voter' not in st.session_state:
         st.session_state.current_voter = None
     if 'last_refresh_time' not in st.session_state:
@@ -1185,21 +1336,25 @@ if __name__ == "__main__":
     st.sidebar.title("Navigation")
     st.sidebar.markdown("---")
     
+    # Updated Page Map with Super Admin
     page_map = {
         "About": "about",
         "Register": "register",
         "Vote": "vote",
         "Results": "results",
         "Teacher": "teacher",
-        "Admin": "admin"
+        "Admin": "admin",
+        "Super Admin": "super_admin" # NEW TAB
     }
+    
     for page_name, page_key in page_map.items():
         if st.sidebar.button(page_name):
             st.session_state.current_page = page_key
-            st.session_state.last_refresh_time = time.time()  # Reset refresh timer on page change
+            st.session_state.last_refresh_time = time.time()
             st.rerun()
     
     page_to_render = st.session_state.get('current_page', 'about')
+    
     if page_to_render == 'register':
         render_registration_page()
     elif page_to_render == 'about':
@@ -1212,3 +1367,5 @@ if __name__ == "__main__":
         render_teacher_page(teachers, students, metrics)
     elif page_to_render == 'admin':
         render_admin_page(settings, students, positions, votes, teachers, weights)
+    elif page_to_render == 'super_admin':  # NEW RENDER CALL
+        render_super_admin_page(settings, students, metrics)
