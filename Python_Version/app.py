@@ -5,6 +5,7 @@ import pandas as pd
 import json
 import time
 import os
+import altair as alt
 
 # --- Path Setup ---
 # Get the folder where this script (app.py) is located
@@ -487,12 +488,10 @@ def render_teacher_page(teachers, students, metrics):
     st.subheader(f"Enter Metric Scores for Grade {teacher['grade']} {teacher['class']} (0-100)")
     class_students = [s for s in students if s['grade'] == teacher['grade'] and s['student_class'] == teacher['class']]
     
-    # --- CRITICAL FIX: Sync Session State with Database ---
-    # This ensures input boxes show the latest Admin updates, not stale user input.
+    # --- Sync Session State with Database ---
     for s in class_students:
         s_id = s['student_id']
         m_data = metrics.get(s_id, {})
-        # Map our UI keys to DB columns
         sync_map = {
             f"{s_id}_acad": 'academics',
             f"{s_id}_disc": 'discipline',
@@ -501,7 +500,6 @@ def render_teacher_page(teachers, students, metrics):
             f"{s_id}_speak": 'public_speaking'
         }
         for ss_key, db_col in sync_map.items():
-            # If the widget key exists in session state, force update it with DB value
             if ss_key in st.session_state:
                 st.session_state[ss_key] = m_data.get(db_col, 0)
 
@@ -534,7 +532,7 @@ def render_teacher_page(teachers, students, metrics):
                 if not is_locked:
                     any_unlocked = True
 
-                # Capture inputs (Values are now synced above)
+                # Capture inputs
                 academics = cols[1].number_input("Acad", 0, 100, student_metrics.get('academics', 0), key=f"{s['student_id']}_acad", label_visibility="collapsed", disabled=disabled)
                 discipline = cols[2].number_input("Disc", 0, 100, student_metrics.get('discipline', 0), key=f"{s['student_id']}_disc", label_visibility="collapsed", disabled=disabled)
                 comm_svc = cols[3].number_input("Comm", 0, 100, student_metrics.get('community_service', 0), key=f"{s['student_id']}_comm", label_visibility="collapsed", disabled=disabled)
@@ -1298,6 +1296,44 @@ def render_results_page(positions, votes, settings, weights, metrics):
                 st.success(f"**Winner: {leader_name}** with a score of **{leader_score:.2f}**")
             
             st.dataframe(tally_df)
+
+            # --- NEW CHART SECTION (PIE CHART) ---
+            # Create a dedicated dataframe for plotting with numeric types
+            chart_rows = []
+            for candidate in candidates:
+                c_id = candidate['student_id']
+                votes_rx = vote_counts.get(c_id, 0)
+                pct = (votes_rx / total_votes * 100) if total_votes > 0 else 0
+                chart_rows.append({
+                    "Candidate": candidate['name'],
+                    "Total Votes": votes_rx,
+                    "Percentage": pct
+                })
+            
+            chart_df = pd.DataFrame(chart_rows)
+            
+            # Create Base Chart
+            base = alt.Chart(chart_df).encode(
+                theta=alt.Theta("Total Votes", stack=True)
+            )
+            
+            # Pie Chart (Arcs)
+            pie = base.mark_arc(outerRadius=120).encode(
+                color=alt.Color("Candidate"),
+                order=alt.Order("Total Votes", sort="descending"),
+                tooltip=["Candidate", "Total Votes", alt.Tooltip("Percentage", format=".1f")]
+            )
+            
+            # Text Labels over arcs
+            text = base.mark_text(radius=140).encode(
+                text=alt.Text("Percentage", format=".1f"),
+                order=alt.Order("Total Votes", sort="descending"),
+                color=alt.value("black")
+            )
+            
+            st.markdown("**Vote Breakdown Chart**")
+            st.altair_chart(pie + text, use_container_width=True)
+            
         else:
             st.info("No candidates found.")
 
