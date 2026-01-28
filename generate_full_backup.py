@@ -28,7 +28,7 @@ try:
     # --- 2. Setup Security & Passwords ---
     print("Generating unique credentials...")
     
-    # A. Admin & Super Admin Keys
+    # A. Admin & Super Admin Keys (Randomly Generated)
     admin_pin = generate_password(length=6, digits_only=True)
     super_admin_pin = generate_password(length=8, digits_only=False)
     
@@ -46,8 +46,7 @@ try:
     grade_stream_pairs = set()
     grades_found = set()
     
-    # Pre-scan for streams to generate stream-specific passwords
-    # We need to know all streams first to generate their passwords once
+    # Pre-scan for streams to generate passwords
     print("Analyzing streams...")
     stream_passwords = {} # Map (grade, stream) -> (plaintext, hash)
     
@@ -59,8 +58,8 @@ try:
                 g = int(parts[1])
                 s = " ".join(parts[2:]).title()
                 if (g, s) not in stream_passwords:
-                    # Generate unique password for this stream
-                    pw = generate_password(length=6)
+                    # --- PASSWORD SET TO 123456 ---
+                    pw = "123456"
                     pw_hash = bcrypt.hashpw(pw.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                     stream_passwords[(g, s)] = (pw, pw_hash)
                     
@@ -93,7 +92,7 @@ try:
                 if (grade, stream) in stream_passwords:
                     password_hash = stream_passwords[(grade, stream)][1]
                 else:
-                    # Fallback (shouldn't happen due to pre-scan)
+                    # Fallback
                     fallback_pw = "123456"
                     password_hash = bcrypt.hashpw(fallback_pw.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             except ValueError:
@@ -116,8 +115,26 @@ try:
     positions = {}
     
     # --- A) School-Wide Positions (Grade 0) ---
+    # UPDATE: Merged President & Deputy
     school_wide_positions = [
-        "School President & Deputy President"
+        "School President & Deputy President", 
+        "C.S Dormitory (Boys)",
+        "C.S Dormitory (Girls)",
+        "C.S Games and Sports (Boys)",
+        "C.S Games and Sports (Girls)",
+        "C.S Clubs and Societies (Boys)",
+        "C.S Clubs and Societies (Girls)",
+        "C.S Dining Hall (Boys)",
+        "C.S Dining Hall (Girls)",
+        "C.S Entertainment (Boys)",
+        "C.S Entertainment (Girls)",
+        "C.S Sanitation (Boys)",
+        "C.S Sanitation (Girls)",
+        "C.S ENVIRONMENTAL SAFETY AND GOVERNANCE (ESG)",
+        "C.S  SPIRITUAL WELFARE (Boys)",
+        "C.S  SPIRITUAL WELFARE (Girls)",
+        "Timekeeper (Block B)", 
+        "Timekeeper (Block C)"
     ]
 
     for pos in school_wide_positions:
@@ -137,11 +154,11 @@ try:
             "grade": grade, "student_class": stream, "candidates": []
         }
 
-        # Teacher Account (Unique Password)
+        # Teacher Account (Unique Random Password)
         clean_stream = stream.lower().replace(" ", "")
         username = f"teacher{grade}{clean_stream}"
         
-        # Generate unique password
+        # Generate unique password for teacher
         t_pass = generate_password(length=8)
         t_hash = bcrypt.hashpw(t_pass.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         
@@ -163,7 +180,6 @@ try:
         "teachers": teachers_list, 
         "positions": positions,
         "votes": {},
-        # Save both PINs here. Note: app.py needs to be updated to use 'super_admin_pin' if distinct access is required.
         "settings": {
             "pin": admin_pin, 
             "super_admin_pin": super_admin_pin,
@@ -184,7 +200,7 @@ try:
     with open(output_filename, 'w') as f:
         json.dump(backup_data, f, indent=2)
 
-    # Write Keys File (Plain Text for Admin)
+    # Write Keys File
     with open(keys_filename, 'w') as f:
         f.write("=== ALGOCRACY SYSTEM ACCESS KEYS ===\n")
         f.write("DO NOT SHARE THIS FILE WITH UNAUTHORIZED USERS\n\n")
@@ -193,8 +209,8 @@ try:
         for k, v in keys_export["ADMIN_ACCESS"].items():
             f.write(f"{k}: {v}\n")
         
-        f.write("\n--- 2. STUDENT PASSWORDS (BY STREAM) ---\n")
-        f.write("(Distribute these to students in the respective classes)\n")
+        f.write("\n--- 2. STUDENT PASSWORDS ---\n")
+        f.write("(Same password for all students: 123456)\n")
         for k, v in sorted(keys_export["STUDENT_STREAM_PASSWORDS"].items()):
             f.write(f"{k}: {v}\n")
             
