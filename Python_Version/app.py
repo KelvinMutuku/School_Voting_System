@@ -338,12 +338,12 @@ def render_about_page():
     ### Criteria & Weights (Total 100%)
     These weights can be adjusted by Admin (with a PIN). Default model:
     * **Student Votes:** 30%
-    * **Academics:** 30%
-    * **Discipline:** 30%
-    * **Neatness:** 5%
-    * **Leadership:** 15%
-    * **Public Speaking:** 10%
-    * **Flexibility:** 10%
+    * **Academics:** 21%
+    * **Discipline:** 21%
+    * **Neatness:** 4%
+    * **Leadership:** 10%
+    * **Public Speaking:** 7%
+    * **Flexibility:** 7%
     ### How it works
     * Students register with their ID and password, then vote by position. Some positions are school-wide, while others (like Class Prefect) are restricted to voters of a specific grade and stream.
     * Teachers record each student's metric scores (0–100).
