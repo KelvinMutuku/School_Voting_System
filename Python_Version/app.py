@@ -1235,7 +1235,11 @@ def render_voting_page(students, positions, settings):
                    (position_grade == voter_grade and position_stream is None) or \
                    (position_grade == voter_grade and position_stream == voter_stream):
                     candidates = position_data['candidates']
-                    candidate_names = [c['name'] for c in candidates if c['student_id'] != voter['student_id']] # Exclude voter
+                    
+                    # --- UPDATE: Removed the filter "if c['student_id'] != voter['student_id']" ---
+                    # Now candidates can see their own name in the list.
+                    candidate_names = [c['name'] for c in candidates] 
+                    
                     if not candidate_names:
                         st.info(f"No eligible candidates for {position_name}.")
                     else:
