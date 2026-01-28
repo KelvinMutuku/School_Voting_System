@@ -1277,8 +1277,8 @@ def render_results_page(positions, votes, settings, weights, metrics):
         Fetches metrics for a candidate. 
         If student_id contains '+', it splits the IDs, fetches both, and returns the average.
         """
-        # Default zero-scores to avoid errors
-        default_m = {'academics': 0, 'discipline': 0, 'neatness': 0, 'leadership': 0, 'public_speaking': 0, 'flexibility': 0}
+        # Default zero-scores including NEW metrics
+        default_m = {'academics': 0, 'discipline': 0, 'neatness': 0, 'flexibility': 0, 'leadership': 0, 'public_speaking': 0}
         
         if '+' in student_id:
             # Joint Ticket (e.g., "KJS001+KJS002")
@@ -1304,8 +1304,8 @@ def render_results_page(positions, votes, settings, weights, metrics):
             (vote_percentage * weights.get('student_votes', 0)) +
             (c_metrics.get('academics', 0) * weights.get('academics', 0)) +
             (c_metrics.get('discipline', 0) * weights.get('discipline', 0)) +
-            (c_metrics.get('neatness', 0) * weights.get('neatness', 0)) +
-            (c_metrics.get('flexibility', 0) * weights.get('flexibility', 0)) +
+            (c_metrics.get('neatness', 0) * weights.get('neatness', 0)) +     # NEW
+            (c_metrics.get('flexibility', 0) * weights.get('flexibility', 0)) + # NEW
             (c_metrics.get('leadership', 0) * weights.get('leadership', 0)) +
             (c_metrics.get('public_speaking', 0) * weights.get('public_speaking', 0))
         ) / 100.0
@@ -1313,11 +1313,11 @@ def render_results_page(positions, votes, settings, weights, metrics):
 
     # --- LOGIC: Render Tables ---
     if voting_is_open:
-        st.subheader("Live Computed Results (Student Votes + Criteria)")
+        st.subheader("Live Computed Results")
     else:
         st.subheader("Final Computed Results")
 
-    # Prepare CSV Header with exact About Page names
+    # Prepare CSV Header
     csv_lines = ["Position,Candidate,Student Votes,Academics,Discipline,Neatness,Flexibility,Leadership,Public Speaking,Final Score"]
 
     for position_name, position_data in positions.items():
@@ -1334,7 +1334,6 @@ def render_results_page(positions, votes, settings, weights, metrics):
         for voter_id, cast_votes in votes.items():
             voted_candidate_name = cast_votes.get(position_name)
             if voted_candidate_name:
-                # Find the candidate object that matches the voted name
                 candidate_obj = next((c for c in candidates if c['name'] == voted_candidate_name), None)
                 if candidate_obj:
                     vote_counts[candidate_obj['student_id']] += 1
@@ -1342,6 +1341,8 @@ def render_results_page(positions, votes, settings, weights, metrics):
         
         # 2. Build Table Data
         tally_data = []
+        chart_rows = [] # List for the Pie Chart
+        
         for candidate in candidates:
             c_id = candidate['student_id']
             c_name = candidate['name']
@@ -1356,22 +1357,43 @@ def render_results_page(positions, votes, settings, weights, metrics):
             # Calculate Final Score
             final_score = calculate_final_score(m, vote_percentage)
             
-            # Append data with keys exactly matching About Page
+            # --- PREPARE CHART DATA (Breakdown) ---
+            # 1. Calculate Weighted Vote Score
+            vote_score_contribution = (vote_percentage * weights.get('student_votes', 0)) / 100.0
+            
+            # 2. Calculate Weighted Criteria Score
+            criteria_sum = (
+                (m.get('academics', 0) * weights.get('academics', 0)) +
+                (m.get('discipline', 0) * weights.get('discipline', 0)) +
+                (m.get('neatness', 0) * weights.get('neatness', 0)) +
+                (m.get('flexibility', 0) * weights.get('flexibility', 0)) +
+                (m.get('leadership', 0) * weights.get('leadership', 0)) +
+                (m.get('public_speaking', 0) * weights.get('public_speaking', 0))
+            ) / 100.0
+            
+            chart_rows.append({
+                "Candidate": c_name,
+                "Total Score": final_score,
+                "Student Votes": vote_score_contribution,
+                "Criteria": criteria_sum
+            })
+
+            # Append data to Table
             tally_data.append({
                 'Candidate': c_name,
-                'Student Votes': f"{vote_percentage:.2f}",   # Renamed from 'Vote %'
+                'Student Votes': f"{vote_percentage:.2f}",
                 'Academics': f"{m.get('academics', 0):.1f}",
                 'Discipline': f"{m.get('discipline', 0):.1f}",
-                'Neatness': f"{m.get('neatness', 0):.1f}", 
-                'Leadership': f"{m.get('leadership', 0):.1f}",
+                'Neatness': f"{m.get('neatness', 0):.1f}",
                 'Flexibility': f"{m.get('flexibility', 0):.1f}",
+                'Leadership': f"{m.get('leadership', 0):.1f}",
                 'Public Speaking': f"{m.get('public_speaking', 0):.1f}",
                 'Final Score': final_score
             })
             
             # Add to CSV string if needed
             if not voting_is_open:
-                 csv_lines.append(f"{position_name},{c_name},{vote_percentage:.2f},{m.get('academics')},{m.get('discipline')},{m.get('neatness')},{m.get('leadership')},{m.get('public_speaking')},{m.get('flexibility')},{final_score:.2f}")
+                 csv_lines.append(f"{position_name},{c_name},{vote_percentage:.2f},{m.get('academics')},{m.get('discipline')},{m.get('neatness')},{m.get('flexibility')},{m.get('leadership')},{m.get('public_speaking')},{final_score:.2f}")
 
         # 3. Render Dataframe
         if tally_data:
@@ -1392,41 +1414,35 @@ def render_results_page(positions, votes, settings, weights, metrics):
             
             st.dataframe(tally_df)
 
-            # --- NEW CHART SECTION (PIE CHART) ---
-            # Create a dedicated dataframe for plotting with numeric types
-            chart_rows = []
-            for candidate in candidates:
-                c_id = candidate['student_id']
-                votes_rx = vote_counts.get(c_id, 0)
-                pct = (votes_rx / total_votes * 100) if total_votes > 0 else 0
-                chart_rows.append({
-                    "Candidate": candidate['name'],
-                    "Total Votes": votes_rx,
-                    "Percentage": pct
-                })
-            
+            # --- NEW CHART SECTION (PIE CHART WITH BREAKDOWN) ---
             chart_df = pd.DataFrame(chart_rows)
             
             # Create Base Chart
             base = alt.Chart(chart_df).encode(
-                theta=alt.Theta("Total Votes", stack=True)
+                theta=alt.Theta("Total Score", stack=True)
             )
             
             # Pie Chart (Arcs)
             pie = base.mark_arc(outerRadius=120).encode(
                 color=alt.Color("Candidate"),
-                order=alt.Order("Total Votes", sort="descending"),
-                tooltip=["Candidate", "Total Votes", alt.Tooltip("Percentage", format=".1f")]
+                order=alt.Order("Total Score", sort="descending"),
+                # Tooltip now explicitly shows the breakdown
+                tooltip=[
+                    "Candidate", 
+                    alt.Tooltip("Total Score", format=".2f"),
+                    alt.Tooltip("Student Votes", format=".2f", title="Vote Contribution"),
+                    alt.Tooltip("Criteria", format=".2f", title="Criteria Contribution")
+                ]
             )
             
             # Text Labels over arcs
             text = base.mark_text(radius=140).encode(
-                text=alt.Text("Percentage", format=".1f"),
-                order=alt.Order("Total Votes", sort="descending"),
+                text=alt.Text("Total Score", format=".2f"),
+                order=alt.Order("Total Score", sort="descending"),
                 color=alt.value("black")
             )
             
-            st.markdown("**Vote Breakdown Chart**")
+            st.markdown("**Leaderboard Chart (Votes + Criteria)**")
             st.altair_chart(pie + text, use_container_width=True)
             
         else:
