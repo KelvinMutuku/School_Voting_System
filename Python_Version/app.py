@@ -838,6 +838,30 @@ def render_super_admin_page(settings, students, metrics):
     
     # --- SECURITY SETTINGS ---
     st.subheader("Security Settings")
+    # --- RESET VOTES (Super Admin Only) ---
+    st.markdown("---")
+    st.subheader("📊 Election Management")
+    with st.expander("Reset All Election Votes"):
+        st.warning("⚠️ **DANGER ZONE**: This action will permanently delete all cast votes and reset the voting status for every student.")
+        
+        # Double confirmation to prevent accidents
+        confirm_text = st.text_input("Type 'RESET' to confirm", key="sa_reset_confirm_text")
+        confirm_check = st.checkbox("I understand that this cannot be undone", key="sa_reset_checkbox")
+        
+        if st.button("Purge All Votes", type="primary", disabled=(confirm_text != "RESET" or not confirm_check)):
+            try:
+                with sqlite3.connect(DB_FILE) as conn:
+                    cursor = conn.cursor()
+                    # 1. Clear the votes table
+                    cursor.execute("DELETE FROM votes")
+                    # 2. Reset the has_voted flag for all students
+                    cursor.execute("UPDATE students SET has_voted = 0")
+                    conn.commit()
+                st.success("Election reset successful. All students can now vote again.")
+                time.sleep(2)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error during reset: {e}")
     
     # 1. Change Super Admin PIN
     with st.expander("Change Super Admin PIN (Your Password)"):
