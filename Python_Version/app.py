@@ -1328,8 +1328,8 @@ def render_results_page(positions, votes, settings, weights, metrics):
             (vote_percentage * weights.get('student_votes', 0)) +
             (c_metrics.get('academics', 0) * weights.get('academics', 0)) +
             (c_metrics.get('discipline', 0) * weights.get('discipline', 0)) +
-            (c_metrics.get('neatness', 0) * weights.get('neatness', 0)) +     # NEW
-            (c_metrics.get('flexibility', 0) * weights.get('flexibility', 0)) + # NEW
+            (c_metrics.get('neatness', 0) * weights.get('neatness', 0)) +     
+            (c_metrics.get('flexibility', 0) * weights.get('flexibility', 0)) + 
             (c_metrics.get('leadership', 0) * weights.get('leadership', 0)) +
             (c_metrics.get('public_speaking', 0) * weights.get('public_speaking', 0))
         ) / 100.0
@@ -1398,7 +1398,7 @@ def render_results_page(positions, votes, settings, weights, metrics):
             chart_rows.append({
                 "Candidate": c_name,
                 "Total Score": final_score,
-                "Student Votes": vote_score_contribution,
+                "Vote Count": votes_received,  # <--- ADDED: Raw vote count
                 "Criteria": criteria_sum
             })
 
@@ -1450,11 +1450,11 @@ def render_results_page(positions, votes, settings, weights, metrics):
             pie = base.mark_arc(outerRadius=120).encode(
                 color=alt.Color("Candidate"),
                 order=alt.Order("Total Score", sort="descending"),
-                # Tooltip now explicitly shows the breakdown
+                # Tooltip UPDATED to show raw Vote Count
                 tooltip=[
                     "Candidate", 
                     alt.Tooltip("Total Score", format=".2f"),
-                    alt.Tooltip("Student Votes", format=".2f", title="Vote Contribution"),
+                    alt.Tooltip("Vote Count", title="Number of Votes"), # <--- UPDATED: Shows raw votes
                     alt.Tooltip("Criteria", format=".2f", title="Criteria Contribution")
                 ]
             )
