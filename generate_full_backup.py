@@ -1,227 +1,164 @@
 import pandas as pd
 import json
-import bcrypt
 import secrets
 import string
+import bcrypt
 
 # --- CONFIGURATION ---
-input_file = 'jss.xlsx'
+input_filename = 'GRADE 10 SENIOR BOYS_converted.xlsx' # Ensure this matches your file
+output_filename = 'full_school_backup.json'
+keys_filename = 'access_keys.txt'
+DEFAULT_STREAM = 'Red'  # Fallback if class isn't detected
+DEFAULT_GRADE = 10      # The grade these teachers/students belong to
+STUDENT_DEFAULT_PASSWORD = "123456" # <--- NEW DEFAULT PASSWORD
 
 # --- HELPER: Generate Random Password ---
-def generate_password(length=8, digits_only=False):
+def generate_password(length=6, digits_only=False):
     if digits_only:
         chars = string.digits
     else:
         chars = string.ascii_letters + string.digits
     return ''.join(secrets.choice(chars) for _ in range(length))
 
-# 1. Load the Data
+# --- 1. LOAD AND CLEAN STUDENT DATA ---
+print(f"Reading {input_filename}...")
 try:
-    print(f"Reading {input_file}...")
-    df = pd.read_excel(input_file)
-    df.columns = df.columns.str.strip()
+    # Read first row to detect class name (e.g. "GRADE 10 RED...")
+    header_text = pd.read_excel(input_filename, header=None, nrows=1).iloc[0].astype(str).str.cat().upper()
     
-    required_columns = ['Adm No.', 'Student Name', 'Class']
-    if not all(col in df.columns for col in required_columns):
-        raise ValueError(f"File is missing one of these columns: {required_columns}")
-
-    # --- 2. Setup Security & Passwords ---
-    print("Generating unique credentials...")
-    
-    # A. Admin & Super Admin Keys (Randomly Generated)
-    admin_pin = generate_password(length=6, digits_only=True)
-    super_admin_pin = generate_password(length=8, digits_only=False)
-    
-    # Store plain text keys for export
-    keys_export = {
-        "ADMIN_ACCESS": {
-            "Admin PIN": admin_pin,
-            "Super Admin PIN": super_admin_pin
-        },
-        "TEACHER_PASSWORDS": {},
-        "STUDENT_STREAM_PASSWORDS": {}
-    }
-
-    students_list = []
-    grade_stream_pairs = set()
-    grades_found = set()
-    
-    # Pre-scan for streams to generate passwords
-    print("Analyzing streams...")
-    stream_passwords = {} # Map (grade, stream) -> (plaintext, hash)
-    
-    for index, row in df.iterrows():
-        raw_class = str(row['Class']).strip()
-        parts = raw_class.split()
-        if len(parts) >= 3 and parts[0].lower() == 'grade':
-            try:
-                g = int(parts[1])
-                s = " ".join(parts[2:]).title()
-                if (g, s) not in stream_passwords:
-                    # --- PASSWORD SET TO 123456 ---
-                    pw = "123456"
-                    pw_hash = bcrypt.hashpw(pw.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                    stream_passwords[(g, s)] = (pw, pw_hash)
-                    
-                    # Add to export list
-                    keys_export["STUDENT_STREAM_PASSWORDS"][f"Grade {g} {s}"] = pw
-            except ValueError:
-                pass
-
-    # 3. Process Students
-    print("Processing students...")
-    for index, row in df.iterrows():
-        raw_class = str(row['Class']).strip()
-        student_id = str(row['Adm No.']).strip()
-        name = str(row['Student Name']).strip()
-        
-        grade = 0
-        stream = "Unknown"
-        password_hash = "" # Default if class not found
-        
-        parts = raw_class.split()
-        
-        if len(parts) >= 3 and parts[0].lower() == 'grade':
-            try:
-                grade = int(parts[1])
-                stream = " ".join(parts[2:]).title() 
-                grade_stream_pairs.add((grade, stream))
-                grades_found.add(grade)
-                
-                # Get the specific hash for this stream
-                if (grade, stream) in stream_passwords:
-                    password_hash = stream_passwords[(grade, stream)][1]
-                else:
-                    # Fallback
-                    fallback_pw = "123456"
-                    password_hash = bcrypt.hashpw(fallback_pw.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            except ValueError:
-                pass
-
-        students_list.append({
-            "student_id": student_id,
-            "name": name,
-            "password": password_hash,
-            "grade": grade,
-            "student_class": stream,
-            "gender": "Unknown", 
-            "security_question": "What is your favorite color?",
-            "security_answer": "blue",
-            "has_voted": False
-        })
-
-    # 4. Generate Positions
-    print("Generating positions...")
-    positions = {}
-    
-    # --- A) School-Wide Positions (Grade 0) ---
-    # UPDATE: Merged President & Deputy
-    school_wide_positions = [
-        "School President & Deputy President", 
-        "C.S Dormitory (Boys)",
-        "C.S Dormitory (Girls)",
-        "C.S Games and Sports (Boys)",
-        "C.S Games and Sports (Girls)",
-        "C.S Clubs and Societies (Boys)",
-        "C.S Clubs and Societies (Girls)",
-        "C.S Dining Hall (Boys)",
-        "C.S Dining Hall (Girls)",
-        "C.S Entertainment (Boys)",
-        "C.S Entertainment (Girls)",
-        "C.S Sanitation (Boys)",
-        "C.S Sanitation (Girls)",
-        "C.S ENVIRONMENTAL SAFETY AND GOVERNANCE (ESG)",
-        "C.S  SPIRITUAL WELFARE (Boys)",
-        "C.S  SPIRITUAL WELFARE (Girls)",
-        "Timekeeper (Block B)", 
-        "Timekeeper (Block C)"
-    ]
-
-    for pos in school_wide_positions:
-        positions[pos] = {"grade": 0, "student_class": None, "candidates": []}
-
-    # --- B) Grade-Specific Positions ---
-    for grade in sorted(list(grades_found)):
-        positions[f"Grade {grade} Governor"] = {"grade": grade, "student_class": None, "candidates": []}
-        positions[f"Grade {grade} Senator"] = {"grade": grade, "student_class": None, "candidates": []}
-        positions[f"Grade {grade} Girl Representative"] = {"grade": grade, "student_class": None, "candidates": []}
-
-    # --- C) Stream-Specific Positions & Teachers ---
-    teachers_list = []
-    for grade, stream in sorted(list(grade_stream_pairs)):
-        # Prefect
-        positions[f"Grade {grade} {stream} Prefect"] = {
-            "grade": grade, "student_class": stream, "candidates": []
-        }
-
-        # Teacher Account (Unique Random Password)
-        clean_stream = stream.lower().replace(" ", "")
-        username = f"teacher{grade}{clean_stream}"
-        
-        # Generate unique password for teacher
-        t_pass = generate_password(length=8)
-        t_hash = bcrypt.hashpw(t_pass.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        
-        # Save to export
-        keys_export["TEACHER_PASSWORDS"][f"{username} (Grade {grade} {stream})"] = t_pass
-        
-        teachers_list.append({
-            "username": username,
-            "password": t_hash,
-            "grade": grade,
-            "class": stream,
-            "security_question": "What is your favorite color?",
-            "security_answer": "blue"
-        })
-
-    # 5. Output
-    backup_data = {
-        "students": students_list,
-        "teachers": teachers_list, 
-        "positions": positions,
-        "votes": {},
-        "settings": {
-            "pin": admin_pin, 
-            "super_admin_pin": super_admin_pin,
-            "voting_open": "True"
-        },
-        "weights": {
-            "student_votes": 30, "academics": 15, "discipline": 10,
-            "community_service": 5,
-            "leadership": 10, "public_speaking": 30
-        },
-        "metrics": {}
-    }
-
-    output_filename = 'full_school_backup.json'
-    keys_filename = 'access_keys.txt'
-    
-    # Write JSON Backup
-    with open(output_filename, 'w') as f:
-        json.dump(backup_data, f, indent=2)
-
-    # Write Keys File
-    with open(keys_filename, 'w') as f:
-        f.write("=== ALGOCRACY SYSTEM ACCESS KEYS ===\n")
-        f.write("DO NOT SHARE THIS FILE WITH UNAUTHORIZED USERS\n\n")
-        
-        f.write("--- 1. ADMIN ACCESS ---\n")
-        for k, v in keys_export["ADMIN_ACCESS"].items():
-            f.write(f"{k}: {v}\n")
-        
-        f.write("\n--- 2. STUDENT PASSWORDS ---\n")
-        f.write("(Same password for all students: 123456)\n")
-        for k, v in sorted(keys_export["STUDENT_STREAM_PASSWORDS"].items()):
-            f.write(f"{k}: {v}\n")
+    # Find header row for data
+    df_raw = pd.read_excel(input_filename, header=None)
+    header_row_index = -1
+    for i, row in df_raw.head(10).iterrows():
+        if row.astype(str).str.contains('ADM', case=False).any():
+            header_row_index = i
+            break
             
-        f.write("\n--- 3. TEACHER PASSWORDS ---\n")
-        for k, v in sorted(keys_export["TEACHER_PASSWORDS"].items()):
-            f.write(f"{k}: {v}\n")
-            
-    print(f"Success! Created '{output_filename}' (Database)")
-    print(f"Success! Created '{keys_filename}' (READ ME - Contains Passwords)")
-    print(f" - Students: {len(students_list)}")
-    print(f" - Teachers: {len(teachers_list)}")
+    if header_row_index != -1:
+        df = pd.read_excel(input_filename, header=header_row_index)
+    else:
+        df = pd.read_excel(input_filename)
 
 except Exception as e:
-    print(f"An error occurred: {e}")
+    print(f"Error reading Excel file: {e}")
+    exit()
+
+# --- 2. FIX COLUMNS & EXTRACT CLASS ---
+df.columns = df.columns.str.strip()
+rename_map = {'ADM': 'Adm No.', 'NAMES': 'Student Name'}
+df = df.rename(columns=rename_map)
+
+# Detect Class from Header
+if 'Class' not in df.columns:
+    found_stream = DEFAULT_STREAM
+    for color in ["RED", "BLUE", "GREEN", "YELLOW", "PINK", "MAGENTA", "PURPLE"]:
+        if color in header_text:
+            found_stream = color.capitalize()
+            break
+    df['Class'] = found_stream
+
+df = df.dropna(subset=['Adm No.'])
+
+# --- 3. GENERATE CREDENTIALS ---
+print("Generating credentials...")
+admin_pin = generate_password(length=4, digits_only=True)
+super_admin_pin = generate_password(length=8, digits_only=True)
+
+# Data Containers
+students_export = []
+teachers_export = []
+metrics_export = {}
+teacher_passwords_export = {} # For Teachers only
+
+# A. PROCESS STUDENTS (Default Password: 123456)
+# Pre-hash the default password once to save processing time
+hashed_default_pwd = bcrypt.hashpw(STUDENT_DEFAULT_PASSWORD.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+for index, row in df.iterrows():
+    try:
+        adm = str(row['Adm No.']).strip()
+        name = str(row['Student Name']).strip()
+        stream = str(row['Class']).strip()
+        
+        if not adm or adm.lower() == 'nan': continue
+
+        # Use the pre-hashed default password
+        students_export.append({
+            "student_id": adm,
+            "name": name,
+            "password": hashed_default_pwd, # All students get 123456
+            "grade": DEFAULT_GRADE,
+            "student_class": stream,
+            "gender": "Male",
+            "security_question": "What is your favorite color?",
+            "security_answer": "blue",
+            "has_voted": 0
+        })
+        
+        metrics_export[adm] = {
+            "academics": 0, "discipline": 0, "neatness": 0,
+            "flexibility": 0, "leadership": 0, "public_speaking": 0,
+            "locked": 0
+        }
+
+    except Exception:
+        continue
+
+# B. PROCESS TEACHERS (Red, Green, Blue)
+target_streams = ['Red', 'Green', 'Blue']
+
+for stream in target_streams:
+    # Username format: teacher10red, teacher10green, etc.
+    username = f"teacher{DEFAULT_GRADE}{stream.lower()}"
+    raw_pw = generate_password(6) # Random password for teachers (safer)
+    hashed_pw = bcrypt.hashpw(raw_pw.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    teachers_export.append({
+        "username": username,
+        "password": hashed_pw,
+        "grade": DEFAULT_GRADE,
+        "class": stream,
+        "security_question": "What is the school motto?",
+        "security_answer": "excellence" 
+    })
+    
+    teacher_passwords_export[username] = raw_pw
+
+# --- 4. EXPORT JSON & KEYS ---
+backup_data = {
+    "students": students_export,
+    "teachers": teachers_export,
+    "positions": {},
+    "votes": {},
+    "settings": {
+        "pin": admin_pin,
+        "voting_open": "True",
+        "super_admin_pin": super_admin_pin
+    },
+    "weights": {
+        "student_votes": 30, "academics": 15, "discipline": 10,
+        "neatness": 5, "flexibility": 10, "leadership": 10, "public_speaking": 20
+    },
+    "metrics": metrics_export
+}
+
+# Write JSON
+with open(output_filename, 'w') as f:
+    json.dump(backup_data, f, indent=2)
+print(f"✅ JSON Backup saved to: {output_filename}")
+
+# Write Access Keys
+with open(keys_filename, 'w') as f:
+    f.write("=== ALGOCRACY SYSTEM ACCESS KEYS ===\n")
+    f.write(f"SUPER ADMIN PIN: {super_admin_pin}\n")
+    f.write(f"ADMIN PIN:       {admin_pin}\n\n")
+    
+    f.write("--- TEACHER ACCOUNTS ---\n")
+    for user, pwd in teacher_passwords_export.items():
+        f.write(f"Username: {user:<15} | Password: {pwd}\n")
+    
+    f.write("\n--- STUDENT PASSWORDS ---\n")
+    f.write(f"ALL STUDENTS DEFAULT PASSWORD: {STUDENT_DEFAULT_PASSWORD}\n")
+    f.write("(Individual student passwords are no longer listed since they are identical)")
+
+print(f"✅ Access Keys saved to: {keys_filename}")
