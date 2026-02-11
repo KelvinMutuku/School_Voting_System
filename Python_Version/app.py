@@ -468,151 +468,286 @@ def render_registration_page():
                         except Exception as e:
                             st.error(f"An error occurred during password reset: {e}")
 
-def render_teacher_page(students, metrics):
+def render_teacher_page(teachers, students, metrics):
     st.header("Teacher Dashboard")
-    st.markdown("---")
-
-    if 'logged_in_teacher' not in st.session_state:
+    if 'teacher_reset_username' not in st.session_state:
+        st.session_state.teacher_reset_username = None
+    
+    if not st.session_state.get('logged_in_teacher'):
         st.subheader("Teacher Login")
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
+        
         if st.button("Login"):
-            try:
-                with sqlite3.connect(DB_FILE) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT * FROM teachers WHERE username = ?", (username,))
-                    teacher = cursor.fetchone()
-                    
-                    if teacher and bcrypt.checkpw(password.encode('utf-8'), teacher[2].encode('utf-8')):
-                        st.session_state.logged_in_teacher = {
-                            "username": teacher[0],
-                            "grade": teacher[3],
-                            "class": teacher[4]
-                        }
-                        st.success(f"Welcome, {username}!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid credentials.")
-            except Exception as e:
-                st.error(f"Login error: {e}")
+            teacher = next((t for t in teachers if t['username'] == username), None)
+            if teacher and bcrypt.checkpw(password.encode('utf-8'), teacher['password'].encode('utf-8')):
+                st.session_state.logged_in_teacher = teacher
+                st.success("Login successful!")
+                st.rerun()
+            else:
+                st.error("Invalid username or password.")
+        
+        st.markdown("---")
+        with st.expander("Forgot Your Password?"):
+            if not st.session_state.teacher_reset_username:
+                with st.form("teacher_find_user_form"):
+                    reset_username = st.text_input("Enter your username to begin")
+                    if st.form_submit_button("Find My Account"):
+                        teacher_to_reset = next((t for t in teachers if t['username'] == reset_username), None)
+                        if teacher_to_reset:
+                            st.session_state.teacher_reset_username = teacher_to_reset
+                            st.rerun()
+                        else:
+                            st.error("Username not found.")
+            
+            if st.session_state.teacher_reset_username:
+                teacher = st.session_state.teacher_reset_username
+                st.info(f"**Security Question:** {teacher['security_question']}")
+                with st.form("teacher_reset_form"):
+                    security_answer = st.text_input("Your Security Answer")
+                    new_password = st.text_input("New Password (min 6 characters)", type="password")
+                    if st.form_submit_button("Reset Password"):
+                        if len(new_password) < 6:
+                            st.error("Password must be at least 6 characters long.")
+                        elif not security_answer:
+                            st.error("Please provide your security answer.")
+                        elif security_answer.lower() == teacher['security_answer'].lower():
+                            hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                            with sqlite3.connect(DB_FILE) as conn:
+                                conn.execute("UPDATE teachers SET password = ? WHERE username = ?", (hashed_new_password, teacher['username']))
+                                conn.commit()
+                            st.success("Password reset successfully! You can now log in.")
+                            st.session_state.teacher_reset_username = None
+                        else:
+                            st.error("Incorrect security answer.")
         return
 
     # --- TEACHER IS LOGGED IN ---
     teacher = st.session_state.logged_in_teacher
-    st.write(f"Logged in as: **{teacher['username']}** (Grade {teacher['grade']} - {teacher['class']})")
+    st.success(f"Welcome, {teacher['username']} (Grade {teacher['grade']} {teacher['class']})!")
     
-    if st.button("Logout"):
-        del st.session_state.logged_in_teacher
-        st.rerun()
-
-    # --- FILTER STUDENTS ---
-    # 1. Filter by Grade
-    grade_students = [s for s in students if s['grade'] == teacher['grade']]
+    st.subheader(f"Enter Metric Scores for Grade {teacher['grade']} {teacher['class']} (0-100)")
+    class_students = [s for s in students if s['grade'] == teacher['grade'] and s['student_class'] == teacher['class']]
     
-    # 2. Filter by Stream (if teacher is assigned to a specific stream)
-    if teacher['class'] != "All":
-        class_students = [s for s in grade_students if teacher['class'] in s['student_class']]
-    else:
-        # If teacher is "All", let them filter by stream manually
-        selected_stream = st.selectbox("Filter by Stream", ["All"] + STREAMS)
-        if selected_stream != "All":
-            class_students = [s for s in grade_students if selected_stream in s['student_class']]
-        else:
-            class_students = grade_students
+    # --- Sync Session State with Database ---
+    for s in class_students:
+        s_id = s['student_id']
+        m_data = metrics.get(s_id, {})
+        sync_map = {
+            f"{s_id}_acad": 'academics',
+            f"{s_id}_disc": 'discipline',
+            f"{s_id}_neat": 'neatness',
+            f"{s_id}_flex": 'flexibility',
+            f"{s_id}_lead": 'leadership',
+            f"{s_id}_speak": 'public_speaking'
+        }
+        for ss_key, db_col in sync_map.items():
+            if ss_key in st.session_state:
+                st.session_state[ss_key] = m_data.get(db_col, 0)
 
     if not class_students:
-        st.info("No students found for this class.")
-        return
-
-    # --- METRICS ENTRY ---
-    st.subheader("Enter Student Metrics")
-    
-    # Create options dictionary
-    student_options = {f"{s['name']} ({s['student_id']})": s for s in class_students}
-    
-    # FIX 1: Handle Empty List for Selectbox
-    if not student_options:
-        st.warning("No students available to select.")
+        st.info("There are no students registered in your class yet.")
     else:
-        selected_student_key = st.selectbox("Select Student", options=list(student_options.keys()))
-        selected_student = student_options[selected_student_key]
-        s_id = selected_student['student_id']
-        
-        # Get current metrics
-        current_m = metrics.get(s_id, {
-            'academics': 0, 'discipline': 0, 'neatness': 0, 
-            'flexibility': 0, 'leadership': 0, 'public_speaking': 0, 'locked': 0
-        })
-
-        if current_m.get('locked', 0):
-            st.warning("🔒 Metrics for this student are locked.")
-        else:
-            # FIX 2: Added st.form_submit_button inside the form
-            with st.form("metrics_form"):
-                c1, c2 = st.columns(2)
-                with c1:
-                    academics = st.slider("Academics", 0, 10, int(current_m['academics']))
-                    discipline = st.slider("Discipline", 0, 10, int(current_m['discipline']))
-                    neatness = st.slider("Neatness", 0, 10, int(current_m['neatness']))
-                with c2:
-                    flexibility = st.slider("Flexibility", 0, 10, int(current_m['flexibility']))
-                    leadership = st.slider("Leadership", 0, 10, int(current_m['leadership']))
-                    public_speaking = st.slider("Public Speaking", 0, 10, int(current_m['public_speaking']))
-                
-                # THE MISSING BUTTON
-                submitted = st.form_submit_button("Save Metrics")
-                
-                if submitted:
-                    new_metrics = {
-                        "academics": academics, "discipline": discipline,
-                        "neatness": neatness, "flexibility": flexibility,
-                        "leadership": leadership, "public_speaking": public_speaking,
-                        "locked": 1 # Auto-lock after saving
-                    }
-                    metrics[s_id] = new_metrics
-                    # In a real app, you'd save to DB here
-                    save_data(positions, votes, settings, weights, metrics) # Ensure these variables are available or passed
-                    st.success("Metrics saved and locked!")
-                    time.sleep(1)
-                    st.rerun()
-
-    # --- RE-ASSIGN CLASS (New Feature Fix) ---
-    st.markdown("---")
-    st.subheader("Manage Student Classes")
-    
-    if not student_options:
-         st.warning("No students to manage.")
-    else:
-        # FIX 1 (Repeated): Ensure options list is not empty
-        selected_student_display = st.selectbox("Select student to re-assign", options=list(student_options.keys()), key="reassign_select")
-        student_to_move = student_options[selected_student_display]
-        
-        new_grade = st.selectbox("New Grade", GRADES, index=GRADES.index(student_to_move['grade']) if student_to_move['grade'] in GRADES else 0)
-        new_stream = st.selectbox("New Stream", STREAMS)
-        
-        if st.button("Update Class"):
-            # Update the student object in memory
-            # Handle "None" stream logic
-            if new_stream == "None":
-                new_class_name = f"Grade {new_grade}"
-            else:
-                new_class_name = f"Grade {new_grade} {new_stream}"
+        with st.form("metrics_form"):
+            metric_inputs = {}
+            # Header
+            cols = st.columns([2, 1, 1, 1, 1, 1, 1])
+            cols[0].write("**Student Name**")
+            cols[1].write("Academics")
+            cols[2].write("Discipline")
+            cols[3].write("Neatness")
+            cols[4].write("Flexibility")
+            cols[5].write("Leadership")
+            cols[6].write("Speaking")
             
-            # Update in Database
-            try:
-                with sqlite3.connect(DB_FILE) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        UPDATE students 
-                        SET grade = ?, student_class = ? 
-                        WHERE student_id = ?
-                    """, (new_grade, new_class_name, student_to_move['student_id']))
-                    conn.commit()
-                st.success(f"Moved {student_to_move['name']} to {new_class_name}")
-                time.sleep(1)
-                st.rerun()
-            except Exception as e:
-                st.error(f"Database error: {e}")
+            any_unlocked = False
+
+            for s in class_students:
+                cols = st.columns([2, 1, 1, 1, 1, 1, 1])
+                student_metrics = metrics.get(s['student_id'], {})
+                is_locked = student_metrics.get('locked', False)
+                
+                # Show Name and Status
+                status_icon = "🔒" if is_locked else "✏️"
+                cols[0].write(f"{status_icon} {s['name']}\n({s['student_id']})")
+                
+                disabled = is_locked
+                if not is_locked:
+                    any_unlocked = True
+
+                # Capture inputs
+                academics = cols[1].number_input("Acad", 0, 100, student_metrics.get('academics', 0), key=f"{s['student_id']}_acad", label_visibility="collapsed", disabled=disabled)
+                discipline = cols[2].number_input("Disc", 0, 100, student_metrics.get('discipline', 0), key=f"{s['student_id']}_disc", label_visibility="collapsed", disabled=disabled)
+                neat = cols[3].number_input("neat", 0, 100, student_metrics.get('neatness', 0), key=f"{s['student_id']}_neat", label_visibility="collapsed", disabled=disabled)
+                flexibility = cols[4].number_input("Flex", 0, 100, student_metrics.get('flexibility', 0), key=f"{s['student_id']}_flex", label_visibility="collapsed", disabled=disabled)
+                leadership = cols[5].number_input("Lead", 0, 100, student_metrics.get('leadership', 0), key=f"{s['student_id']}_lead", label_visibility="collapsed", disabled=disabled)
+                speaking = cols[6].number_input("Speak", 0, 100, student_metrics.get('public_speaking', 0), key=f"{s['student_id']}_speak", label_visibility="collapsed", disabled=disabled)
+
+                if not is_locked:
+                    metric_inputs[s['student_id']] = {
+                        'academics': academics,
+                        'discipline': discipline,
+                        'neatness': neat,
+                        'flexibility': flexibility,
+                        'leadership': leadership,
+                        'public_speaking': speaking,
+                    }
+                st.markdown("<hr style='margin: 5px 0'>", unsafe_allow_html=True)
+            
+            if any_unlocked:
+                st.warning("⚠️ Warning: Once you click 'Submit', these scores will be LOCKED.")
+                if st.form_submit_button("Submit & Lock Scores"):
+                    with sqlite3.connect(DB_FILE) as conn:
+                        cursor = conn.cursor()
+                        for student_id, scores in metric_inputs.items():
+                            cursor.execute("""
+                                INSERT OR REPLACE INTO metrics (student_id, academics, discipline, neatness, flexibility, leadership, public_speaking, locked)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+                            """, (student_id, scores['academics'], scores['discipline'], scores['neatness'], scores['flexibility'], scores['leadership'], scores['public_speaking']))
+                        conn.commit()
+                    st.success("Scores submitted and locked successfully!")
+                    st.rerun()
+            else:
+                st.info("All scores for this class have been submitted and locked. Please contact Admin if edits are required.")
+                st.form_submit_button("Scores Locked", disabled=True)
+
+    # --- Student Password Management ---
+    st.markdown("---")
+    st.subheader("Change or Reset Student Passwords")
+    # ... (Keep remaining Teacher Page code as is)
+    if not class_students:
+        st.info("No students in your class to manage.")
+    else:
+        st.info("You can set a new password for a student in your class.")
+        for student in class_students:
+            with st.expander(f"Manage Password for: {student['name']} ({student['student_id']})"):
+                with st.form(key=f"reset_form_{student['student_id']}"):
+                    new_password = st.text_input("Enter New Password", type="password", key=f"password_{student['student_id']}")
+                    submitted = st.form_submit_button("Set New Password")
+                    if submitted:
+                        if len(new_password) < 6:
+                            st.error("Password must be at least 6 characters long.")
+                        else:
+                            try:
+                                hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                                with sqlite3.connect(DB_FILE) as conn:
+                                    conn.execute("UPDATE students SET password = ? WHERE student_id = ?", (hashed_password, student['student_id']))
+                                    conn.commit()
+                                st.success(f"Password for {student['name']} has been set successfully!")
+                            except Exception as e:
+                                st.error(f"An error occurred: {e}")
+    
+    # --- Class Roster Management ---
+    st.markdown("---")
+    st.subheader("Manage Class Roster")
+
+    st.markdown("---")
+    st.subheader("Fix Student Gender")
+    st.info("If a student in your class has the wrong gender assigned, correct it here.")
+
+    with st.form("teacher_fix_gender_form"):
+        col1, col2 = st.columns([1, 1])
+        fix_id = col1.text_input("Enter Student ID (e.g., KJS001)").strip()
+        new_gender = col2.selectbox("Select Correct Gender", ["Male", "Female"])
+
+        if st.form_submit_button("Update Gender"):
+            if not fix_id:
+                st.error("Please enter a Student ID.")
+            else:
+                student_check = next((s for s in students if s['student_id'] == fix_id), None)
+                if not student_check:
+                    st.error("Student ID not found.")
+                elif student_check['grade'] != teacher['grade'] or student_check['student_class'] != teacher['class']:
+                    st.warning(f"Note: This student is in Grade {student_check['grade']} {student_check['student_class']}, not your class. Proceeding with update...")
+                    with sqlite3.connect(DB_FILE) as conn:
+                        conn.execute("UPDATE students SET gender = ? WHERE student_id = ?", (new_gender, fix_id))
+                        conn.commit()
+                    st.success(f"Gender for {fix_id} updated to {new_gender}.")
+                else:
+                    with sqlite3.connect(DB_FILE) as conn:
+                        conn.execute("UPDATE students SET gender = ? WHERE student_id = ?", (new_gender, fix_id))
+                        conn.commit()
+                    st.success(f"Gender for {student_check['name']} ({fix_id}) updated to {new_gender}.")
+                    st.rerun()
+    with st.form("add_student_to_class_form"):
+        st.markdown(f"**Assign an Existing Student to Your Class (Grade {teacher['grade']} {teacher['class']})**")
+        student_id_to_add = st.text_input("Enter Student ID to assign")
+        add_student_submitted = st.form_submit_button("Assign to My Class")
+        if add_student_submitted:
+            if not student_id_to_add:
+                st.error("Please enter a Student ID.")
+            else:
+                student_to_add = next((s for s in students if s['student_id'] == student_id_to_add), None)
+                if not student_to_add:
+                    st.error(f"Student with ID '{student_id_to_add}' not found.")
+                elif student_to_add['grade'] == teacher['grade'] and student_to_add['student_class'] == teacher['class']:
+                    st.warning(f"{student_to_add['name']} is already in your class.")
+                else:
+                    try:
+                        with sqlite3.connect(DB_FILE) as conn:
+                            conn.execute("UPDATE students SET grade = ?, student_class = ? WHERE student_id = ?", (teacher['grade'], teacher['class'], student_id_to_add))
+                            conn.commit()
+                        st.success(f"Successfully assigned {student_to_add['name']} ({student_id_to_add}) to Grade {teacher['grade']} {teacher['class']}.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"An error occurred while assigning the student: {e}")
+    if class_students:
+        with st.form("remove_student_from_class_form"):
+            st.markdown("**Re-assign a Student From Your Current Class**")
+            student_options = {f"{s['name']} ({s['student_id']})": s['student_id'] for s in class_students}
+            selected_student_display = st.selectbox("Select student to re-assign", options=list(student_options.keys()))
+            new_grade = st.selectbox("Select New Grade", options=GRADES, index=GRADES.index(teacher['grade']))
+            new_class = st.selectbox("Select New Stream", options=STREAMS + ['Unassigned'])
+            remove_student_submitted = st.form_submit_button("Re-assign Student")
+            if remove_student_submitted and selected_student_display:
+                student_id_to_remove = student_options[selected_student_display]
+                try:
+                    with sqlite3.connect(DB_FILE) as conn:
+                        conn.execute("UPDATE students SET grade = ?, student_class = ? WHERE student_id = ?", (new_grade, new_class, student_id_to_remove))
+                        conn.commit()
+                    st.success(f"Successfully re-assigned {selected_student_display} to Grade {new_grade} {new_class}.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"An error occurred while re-assigning the student: {e}")
+    # --- Clear All Students ---
+    st.markdown("---")
+    st.subheader("Danger Zone")
+    if st.button("Clear All Students"):
+        if st.checkbox("I am sure I want to delete all students"):
+            with sqlite3.connect(DB_FILE) as conn:
+                conn.execute("DELETE FROM students")
+                conn.execute("DELETE FROM metrics")
+                conn.execute("DELETE FROM votes")
+                conn.commit()
+            st.success("All students have been cleared.")
+            st.rerun()
+    # --- Teacher Account Management ---
+    st.markdown("---")
+    st.subheader("My Account")
+    with st.form("teacher_change_password_form"):
+        st.markdown("**Change Your Password**")
+        current_password = st.text_input("Current Password", type="password")
+        new_password = st.text_input("New Password (min 6 characters)", type="password")
+        change_submitted = st.form_submit_button("Change My Password")
+        if change_submitted:
+            if not all([current_password, new_password]):
+                st.error("Please fill in all fields.")
+            elif len(new_password) < 6:
+                st.error("New password must be at least 6 characters long.")
+            else:
+                if bcrypt.checkpw(current_password.encode('utf-8'), teacher['password'].encode('utf-8')):
+                    hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    with sqlite3.connect(DB_FILE) as conn:
+                        conn.execute("UPDATE teachers SET password = ? WHERE username = ?", (hashed_new_password, teacher['username']))
+                        conn.commit()
+                    st.success("Your password has been changed successfully!")
+                    st.session_state.logged_in_teacher['password'] = hashed_new_password
+                else:
+                    st.error("Incorrect current password.")
+    if st.button("Logout"):
+        st.session_state.logged_in_teacher = None
+        st.session_state.teacher_reset_username = None
+        st.rerun()
 
 def render_super_admin_page(settings, students, metrics):
     st.header("Super Admin Panel")
