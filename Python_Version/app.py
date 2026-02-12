@@ -20,7 +20,7 @@ DB_FILE = 'voting_system.db'
 REFRESH_INTERVAL = 10  # Seconds to refresh results page
 
 # --- Set Page Configuration ---
-st.set_page_config(page_title="Milgate SCHOOL JSS ALGOCRACY ELECTIONS")
+st.set_page_config(page_title="Milgate SCHOOLS ALGOCRACY ELECTIONS")
 
 # --- 1. Database Management ---
 def init_db():
