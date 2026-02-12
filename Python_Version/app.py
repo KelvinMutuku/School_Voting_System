@@ -785,7 +785,7 @@ def render_super_admin_page(settings, students, metrics):
     
     # Filter for finding a student
     col_grade, col_stream = st.columns(2)
-    filter_grade = col_grade.selectbox("Filter by Grade", [7, 8, 9, 10], key="sa_metrics_grade")
+    filter_grade = col_grade.selectbox("Filter by Grade", [1,2,3,4,5,6,7,8,9,10], key="sa_metrics_grade")
     filter_stream = col_stream.selectbox("Filter by Stream", STREAMS, key="sa_metrics_stream")
     
     adm_students = [s for s in students if s['grade'] == filter_grade and s['student_class'] == filter_stream]
