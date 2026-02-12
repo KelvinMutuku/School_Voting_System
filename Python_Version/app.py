@@ -11,7 +11,7 @@ import altair as alt
 # Get the folder where this script (app.py) is located
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Build the path to the image
-#IMG_PATH = os.path.join(BASE_DIR, 'img-1.jfif')
+IMG_PATH = os.path.join(BASE_DIR, 'img-1.jfif')
 # --- Constants ---
 # Added "None" to the list
 STREAMS = ["None", "Blue", "Red", "Green", "Yellow", "Pink", "Magenta", "Purple"]
@@ -20,7 +20,7 @@ DB_FILE = 'voting_system.db'
 REFRESH_INTERVAL = 10  # Seconds to refresh results page
 
 # --- Set Page Configuration ---
-st.set_page_config(page_title="MILGATE SCHOOLS ALGOCRACY ELECTIONS")
+st.set_page_config(page_title="KITENGELA INTERNATIONAL SCHOOL JSS ALGOCRACY ELECTIONS")
 
 # --- 1. Database Management ---
 def init_db():
@@ -333,7 +333,7 @@ def import_backup(data):
 
 # --- 2. UI and Logic Functions ---
 def render_about_page():
-    st.header("Milgate SCHOOL JSS ALGOCRACY ELECTIONS")
+    st.header("KITENGELA INTERNATIONAL SCHOOL JSS ALGOCRACY ELECTIONS")
     st.markdown("""
     This platform blends student choice with merit using a transparent formula. Student votes are combined with leadership and performance criteria to select the most suitable leaders.
     ### Criteria & Weights (Total 100%)
@@ -352,7 +352,7 @@ def render_about_page():
         `Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd +  Neatness%×Wn + Flexibility%×Wf + Leadership%×Wl + PublicSpeaking%×Wp`
     * The candidate with the highest Final Score wins each position. The system is transparent and reproducible.
     """)
-    #st.image(IMG_PATH)
+    st.image(IMG_PATH)
 
 def render_registration_page():
     st.header("Student Registration")
@@ -785,7 +785,7 @@ def render_super_admin_page(settings, students, metrics):
     
     # Filter for finding a student
     col_grade, col_stream = st.columns(2)
-    filter_grade = col_grade.selectbox("Filter by Grade", [1,2,3,4,5,6,7,8,9,10], key="sa_metrics_grade")
+    filter_grade = col_grade.selectbox("Filter by Grade", [7, 8, 9, 10], key="sa_metrics_grade")
     filter_stream = col_stream.selectbox("Filter by Stream", STREAMS, key="sa_metrics_stream")
     
     adm_students = [s for s in students if s['grade'] == filter_grade and s['student_class'] == filter_stream]
@@ -1504,7 +1504,7 @@ if __name__ == "__main__":
             st.session_state.last_refresh_time = current_time
             st.rerun()
     
-    #st.sidebar.image(IMG_PATH, use_container_width=True)
+    st.sidebar.image(IMG_PATH, use_container_width=True)
     st.sidebar.title("Navigation")
     st.sidebar.markdown("---")
     
