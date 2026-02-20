@@ -107,20 +107,20 @@ def init_db():
         if 'locked' not in columns:
             try: cursor.execute("ALTER TABLE metrics ADD COLUMN locked INTEGER DEFAULT 0")
             except: pass
-        if 'flexibility' not in columns:
-            try: cursor.execute("ALTER TABLE metrics ADD COLUMN flexibility INTEGER DEFAULT 0")
+        if 'co_curricular' not in columns:
+            try: cursor.execute("ALTER TABLE metrics ADD COLUMN co_curricular INTEGER DEFAULT 0")
             except: pass
-        if 'neatness' not in columns:
-            if 'community_service' in columns:
-                try: cursor.execute("ALTER TABLE metrics RENAME COLUMN community_service TO neatness")
-                except: cursor.execute("ALTER TABLE metrics ADD COLUMN neatness INTEGER DEFAULT 0")
+        if 'public_speaking' not in columns:
+            if 'public_speaking' in columns:
+                try: cursor.execute("ALTER TABLE metrics RENAME COLUMN public_speaking TO public_speaking")
+                except: cursor.execute("ALTER TABLE metrics ADD COLUMN public_speaking INTEGER DEFAULT 0")
             else:
-                cursor.execute("ALTER TABLE metrics ADD COLUMN neatness INTEGER DEFAULT 0")
+                cursor.execute("ALTER TABLE metrics ADD COLUMN public_speaking INTEGER DEFAULT 0")
 
         # Weights Migration
         cursor.execute("DELETE FROM weights WHERE name = 'community_service'")
-        cursor.execute("INSERT OR IGNORE INTO weights (name, value) VALUES ('neatness', 5)")
-        cursor.execute("INSERT OR IGNORE INTO weights (name, value) VALUES ('flexibility', 10)")
+        cursor.execute("INSERT OR IGNORE INTO weights (name, value) VALUES ('public_speaking', 10)")
+        cursor.execute("INSERT OR IGNORE INTO weights (name, value) VALUES ('co_curricular', 10)")
             
         seed_data(conn)
 
@@ -215,9 +215,8 @@ def seed_data(conn):
     cursor.execute("SELECT COUNT(*) FROM weights")
     if cursor.fetchone()[0] == 0:
         weights_data = [
-            ('student_votes', 30), ('academics', 15), ('discipline', 10),
-            ('neatness', 5),('flexibility', 10),
-            ('leadership', 10), ('public_speaking', 30)
+            ('student_votes', 60), ('academics', 10), ('discipline', 10),
+            ('co_curricular', 10),('public_speaking', 10)
         ]
         cursor.executemany("INSERT INTO weights (name, value) VALUES (?, ?)", weights_data)
         st.success("Default weights seeded.")
@@ -254,8 +253,8 @@ def fetch_data():
         weights = {row[0]: row[1] for row in cursor.fetchall()}
         
         # Fetch metrics (including locked)
-        cursor.execute("SELECT student_id, academics, discipline, neatness, flexibility, leadership, public_speaking, locked FROM metrics")
-        metrics = {row[0]: {'academics': row[1], 'discipline': row[2], 'neatness': row[3], 'flexibility': row[4], 'leadership': row[5], 'public_speaking': row[6], 'locked': bool(row[7])} for row in cursor.fetchall()}
+        cursor.execute("SELECT student_id, academics, discipline, co_curricular, public_speaking, locked FROM metrics")
+        metrics = {row[0]: {'academics': row[1], 'discipline': row[2], 'co_curricular': row[3], 'public_speaking': row[4], 'locked': bool(row[5])} for row in cursor.fetchall()}
         
     return students, teachers, positions, votes, settings, weights, metrics
 # --- JSON Backup/Import Functions ---
@@ -325,31 +324,29 @@ def import_backup(data):
         for student_id, m in data['metrics'].items():
             locked_val = m.get('locked', 1) # Default to 1 (locked) if importing old backup to be safe
             cursor.execute(
-                "INSERT INTO metrics (student_id, academics, discipline, neatness, flexibility, leadership, public_speaking, locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (student_id, m['academics'], m['discipline'], m['neatness'], m['flexibility'], m['leadership'], m['public_speaking'], int(locked_val))
+                "INSERT INTO metrics (student_id, academics, discipline, co_curricular, public_speaking, locked) VALUES (?, ?, ?, ?, ?, ?)",
+                (student_id, m['academics'], m['discipline'], m['co_curricular'], m['public_speaking'], int(locked_val))
             )
         
         conn.commit()
 
 # --- 2. UI and Logic Functions ---
 def render_about_page():
-    st.header("KITENGELA INTERNATIONAL SCHOOL JSS ALGOCRACY ELECTIONS")
+    st.header("KITENGELA INTERNATIONAL SCHOOLS  ALGOCRACY ELECTIONS")
     st.markdown("""
     This platform blends student choice with merit using a transparent formula. Student votes are combined with leadership and performance criteria to select the most suitable leaders.
     ### Criteria & Weights (Total 100%)
     These weights can be adjusted by Admin (with a PIN). Default model:
-    * **Student Votes:** 30%
-    * **Academics:** 21%
-    * **Discipline:** 21%
-    * **Neatness:** 4%
-    * **Leadership:** 10%
-    * **Public Speaking:** 7%
-    * **Flexibility:** 7%
+    * **Student Votes:** 60%
+    * **Academics:** 10%
+    * **Discipline:** 10%
+    * **Public Speaking:** 10%
+    * **co_curricular:** 10%
     ### How it works
     * Students register with their ID and password, then vote by position. Some positions are school-wide, while others (like Class Prefect) are restricted to voters of a specific grade and stream.
     * Teachers record each student's metric scores (0–100).
     * The system computes Final Score per candidate:
-        `Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd +  Neatness%×Wn + Flexibility%×Wf + Leadership%×Wl + PublicSpeaking%×Wp`
+        `Final = StudentVotes%×Wsv + Academics%×Wa + Discipline%×Wd +  PublicSpeaking%×Wp + co_curricular%×Wc`
     * The candidate with the highest Final Score wins each position. The system is transparent and reproducible.
     """)
     st.image(IMG_PATH)
@@ -528,22 +525,6 @@ def render_teacher_page(teachers, students, metrics):
     
     st.subheader(f"Enter Metric Scores for Grade {teacher['grade']} {teacher['class']} (0-100)")
     class_students = [s for s in students if s['grade'] == teacher['grade'] and s['student_class'] == teacher['class']]
-    
-    # --- Sync Session State with Database ---
-    for s in class_students:
-        s_id = s['student_id']
-        m_data = metrics.get(s_id, {})
-        sync_map = {
-            f"{s_id}_acad": 'academics',
-            f"{s_id}_disc": 'discipline',
-            f"{s_id}_neat": 'neatness',
-            f"{s_id}_flex": 'flexibility',
-            f"{s_id}_lead": 'leadership',
-            f"{s_id}_speak": 'public_speaking'
-        }
-        for ss_key, db_col in sync_map.items():
-            if ss_key in st.session_state:
-                st.session_state[ss_key] = m_data.get(db_col, 0)
 
     if not class_students:
         st.info("There are no students registered in your class yet.")
@@ -555,10 +536,8 @@ def render_teacher_page(teachers, students, metrics):
             cols[0].write("**Student Name**")
             cols[1].write("Academics")
             cols[2].write("Discipline")
-            cols[3].write("Neatness")
-            cols[4].write("Flexibility")
-            cols[5].write("Leadership")
-            cols[6].write("Speaking")
+            cols[3].write("co_curricular")
+            cols[4].write("Speaking")
             
             any_unlocked = False
 
@@ -578,18 +557,14 @@ def render_teacher_page(teachers, students, metrics):
                 # Capture inputs
                 academics = cols[1].number_input("Acad", 0, 100, student_metrics.get('academics', 0), key=f"{s['student_id']}_acad", label_visibility="collapsed", disabled=disabled)
                 discipline = cols[2].number_input("Disc", 0, 100, student_metrics.get('discipline', 0), key=f"{s['student_id']}_disc", label_visibility="collapsed", disabled=disabled)
-                neat = cols[3].number_input("neat", 0, 100, student_metrics.get('neatness', 0), key=f"{s['student_id']}_neat", label_visibility="collapsed", disabled=disabled)
-                flexibility = cols[4].number_input("Flex", 0, 100, student_metrics.get('flexibility', 0), key=f"{s['student_id']}_flex", label_visibility="collapsed", disabled=disabled)
-                leadership = cols[5].number_input("Lead", 0, 100, student_metrics.get('leadership', 0), key=f"{s['student_id']}_lead", label_visibility="collapsed", disabled=disabled)
-                speaking = cols[6].number_input("Speak", 0, 100, student_metrics.get('public_speaking', 0), key=f"{s['student_id']}_speak", label_visibility="collapsed", disabled=disabled)
+                neat = cols[3].number_input("co-curricular", 0, 100, student_metrics.get('co_curricular', 0), key=f"{s['student_id']}_neat", label_visibility="collapsed", disabled=disabled)
+                speaking = cols[4].number_input("Speak", 0, 100, student_metrics.get('public_speaking', 0), key=f"{s['student_id']}_speak", label_visibility="collapsed", disabled=disabled)
 
                 if not is_locked:
                     metric_inputs[s['student_id']] = {
                         'academics': academics,
                         'discipline': discipline,
-                        'neatness': neat,
-                        'flexibility': flexibility,
-                        'leadership': leadership,
+                        'co_curricular': neat,
                         'public_speaking': speaking,
                     }
                 st.markdown("<hr style='margin: 5px 0'>", unsafe_allow_html=True)
@@ -601,9 +576,9 @@ def render_teacher_page(teachers, students, metrics):
                         cursor = conn.cursor()
                         for student_id, scores in metric_inputs.items():
                             cursor.execute("""
-                                INSERT OR REPLACE INTO metrics (student_id, academics, discipline, neatness, flexibility, leadership, public_speaking, locked)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-                            """, (student_id, scores['academics'], scores['discipline'], scores['neatness'], scores['flexibility'], scores['leadership'], scores['public_speaking']))
+                                INSERT OR REPLACE INTO metrics (student_id, academics, discipline, co_curricular, public_speaking, locked)
+                                VALUES (?, ?, ?, ?, ?, 1)
+                            """, (student_id, scores['academics'], scores['discipline'], scores['co_curricular'], scores['public_speaking']))
                         conn.commit()
                     st.success("Scores submitted and locked successfully!")
                     st.rerun()
@@ -785,7 +760,7 @@ def render_super_admin_page(settings, students, metrics):
     
     # Filter for finding a student
     col_grade, col_stream = st.columns(2)
-    filter_grade = col_grade.selectbox("Filter by Grade", [7, 8, 9, 10], key="sa_metrics_grade")
+    filter_grade = col_grade.selectbox("Filter by Grade", [1,2,3,4,5,6,7, 8, 9, 10], key="sa_metrics_grade")
     filter_stream = col_stream.selectbox("Filter by Stream", STREAMS, key="sa_metrics_stream")
     
     adm_students = [s for s in students if s['grade'] == filter_grade and s['student_class'] == filter_stream]
@@ -798,12 +773,12 @@ def render_super_admin_page(settings, students, metrics):
             s_id = student_opts[selected_s_key]
             with sqlite3.connect(DB_FILE) as conn:
                 c = conn.cursor()
-                c.execute("SELECT academics, discipline, neatness, flexibility, leadership, public_speaking, locked FROM metrics WHERE student_id = ?", (s_id,))
+                c.execute("SELECT academics, discipline, co_curricular, public_speaking, locked FROM metrics WHERE student_id = ?", (s_id,))
                 row = c.fetchone()
                 if row:
-                    curr_m = {'academics': row[0], 'discipline': row[1], 'neatness': row[2], 'flexibility': row[3], 'leadership': row[4], 'public_speaking': row[5], 'locked': row[6]}
+                    curr_m = {'academics': row[0], 'discipline': row[1], 'co_curricular': row[2], 'public_speaking': row[3], 'locked': row[4]}
                 else:
-                    curr_m = {'academics': 0, 'discipline': 0, 'neatness': 0, 'flexibility': 0, 'leadership': 0, 'public_speaking': 0, 'locked': 0}
+                    curr_m = {'academics': 0, 'discipline': 0, 'co_curricular': 0, 'public_speaking': 0, 'locked': 0}
 
             st.markdown(f"**Editing Scores for: {selected_s_key}**")
             if curr_m['locked']:
@@ -812,13 +787,11 @@ def render_super_admin_page(settings, students, metrics):
                 st.success("Status: Open")
 
             with st.form("super_admin_edit_metrics"):
-                c1, c2, c3, c4, c5, c6 = st.columns(6)
+                c1, c2, c3, c4, c5 = st.columns(5)
                 n_acad = c1.number_input("Academics", 0, 100, curr_m['academics'])
                 n_disc = c2.number_input("Discipline", 0, 100, curr_m['discipline'])
-                n_neat = c3.number_input("Neatness", 0, 100, curr_m['neatness'])
-                n_flex = c4.number_input("Flexibility", 0, 100, curr_m['flexibility'])
-                n_lead = c5.number_input("Leadership", 0, 100, curr_m['leadership'])
-                n_speak = c6.number_input("Speaking", 0, 100, curr_m['public_speaking'])
+                n_neat = c3.number_input("Co-Curricular", 0, 100, curr_m['co_curricular'])
+                n_speak = c4.number_input("Speaking", 0, 100, curr_m['public_speaking'])
                 
                 unlock_student = st.checkbox("Unlock this student (Allow teacher to edit again)?")
 
@@ -826,9 +799,9 @@ def render_super_admin_page(settings, students, metrics):
                     new_lock_status = 0 if unlock_student else 1 
                     with sqlite3.connect(DB_FILE) as conn:
                         conn.execute("""
-                            INSERT OR REPLACE INTO metrics (student_id, academics, discipline, neatness, flexibility, leadership, public_speaking, locked)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (s_id, n_acad, n_disc, n_neat, n_flex, n_lead, n_speak, new_lock_status))
+                            INSERT OR REPLACE INTO metrics (student_id, academics, discipline, co_curricular, public_speaking, locked)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (s_id, n_acad, n_disc, n_neat, n_speak, new_lock_status))
                         conn.commit()
                     st.success("Scores updated successfully.")
                     st.rerun()
@@ -997,6 +970,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
     st.subheader("Manage Candidates")
     all_position_names = sorted(list(positions.keys()))
     
+    
     if not all_position_names:
         st.warning("No positions created yet. Add a position above.")
     else:
@@ -1134,7 +1108,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
     # --- Manage Weights ---
     st.subheader("Manage Weights (Must total 100%)")
     with st.form("weights_form"):
-        allowed = ['student_votes', 'academics', 'discipline', 'neatness', 'leadership', 'public_speaking', 'flexibility']
+        allowed = ['student_votes', 'academics', 'discipline', 'co_curricular', 'public_speaking']
         current_w = {k: weights.get(k, 0) for k in allowed}
         new_w = {}
         total = 0
@@ -1303,7 +1277,7 @@ def render_results_page(positions, votes, settings, weights, metrics):
         If student_id contains '+', it splits the IDs, fetches both, and returns the average.
         """
         # Default zero-scores including NEW metrics
-        default_m = {'academics': 0, 'discipline': 0, 'neatness': 0, 'flexibility': 0, 'leadership': 0, 'public_speaking': 0}
+        default_m = {'academics': 0, 'discipline': 0, 'public_speaking': 0, 'co_curricular': 0}
         
         if '+' in student_id:
             # Joint Ticket (e.g., "KJS001+KJS002")
@@ -1329,9 +1303,7 @@ def render_results_page(positions, votes, settings, weights, metrics):
             (vote_percentage * weights.get('student_votes', 0)) +
             (c_metrics.get('academics', 0) * weights.get('academics', 0)) +
             (c_metrics.get('discipline', 0) * weights.get('discipline', 0)) +
-            (c_metrics.get('neatness', 0) * weights.get('neatness', 0)) +     
-            (c_metrics.get('flexibility', 0) * weights.get('flexibility', 0)) + 
-            (c_metrics.get('leadership', 0) * weights.get('leadership', 0)) +
+            (c_metrics.get('co_curricular', 0) * weights.get('co_curricular', 0)) +     
             (c_metrics.get('public_speaking', 0) * weights.get('public_speaking', 0))
         ) / 100.0
         return score
@@ -1343,7 +1315,7 @@ def render_results_page(positions, votes, settings, weights, metrics):
         st.subheader("Final Computed Results")
 
     # Prepare CSV Header
-    csv_lines = ["Position,Candidate,Student Votes,Academics,Discipline,Neatness,Flexibility,Leadership,Public Speaking,Final Score"]
+    csv_lines = ["Position,Candidate,Student Votes,Academics,Discipline,co-curricular,Public Speaking,Final Score"]
 
     for position_name, position_data in positions.items():
         st.markdown(f"### {position_name}")
@@ -1390,9 +1362,7 @@ def render_results_page(positions, votes, settings, weights, metrics):
             criteria_sum = (
                 (m.get('academics', 0) * weights.get('academics', 0)) +
                 (m.get('discipline', 0) * weights.get('discipline', 0)) +
-                (m.get('neatness', 0) * weights.get('neatness', 0)) +
-                (m.get('flexibility', 0) * weights.get('flexibility', 0)) +
-                (m.get('leadership', 0) * weights.get('leadership', 0)) +
+                (m.get('co_curricular', 0) * weights.get('co_curricular', 0)) +
                 (m.get('public_speaking', 0) * weights.get('public_speaking', 0))
             ) / 100.0
             
@@ -1409,9 +1379,7 @@ def render_results_page(positions, votes, settings, weights, metrics):
                 'Student Votes': f"{vote_percentage:.2f}",
                 'Academics': f"{m.get('academics', 0):.1f}",
                 'Discipline': f"{m.get('discipline', 0):.1f}",
-                'Neatness': f"{m.get('neatness', 0):.1f}",
-                'Flexibility': f"{m.get('flexibility', 0):.1f}",
-                'Leadership': f"{m.get('leadership', 0):.1f}",
+                'co-curricular': f"{m.get('co_curricular', 0):.1f}",
                 'Public Speaking': f"{m.get('public_speaking', 0):.1f}",
                 'Final Score': final_score
             })
@@ -1439,39 +1407,39 @@ def render_results_page(positions, votes, settings, weights, metrics):
             
             st.dataframe(tally_df)
 
-            # --- NEW CHART SECTION (PIE CHART WITH BREAKDOWN) ---
+# --- NEW CHART SECTION (PIE CHART WITH BREAKDOWN) ---
             chart_df = pd.DataFrame(chart_rows)
             
-            # Create Base Chart
-            base = alt.Chart(chart_df).encode(
-                theta=alt.Theta("Total Score", stack=True)
-            )
-            
-            # Pie Chart (Arcs)
-            pie = base.mark_arc(outerRadius=120).encode(
-                color=alt.Color("Candidate"),
-                order=alt.Order("Total Score", sort="descending"),
-                # Tooltip UPDATED to show raw Vote Count
-                tooltip=[
-                    "Candidate", 
-                    alt.Tooltip("Total Score", format=".2f"),
-                    alt.Tooltip("Vote Count", title="Number of Votes"), # <--- UPDATED: Shows raw votes
-                    alt.Tooltip("Criteria", format=".2f", title="Criteria Contribution")
-                ]
-            )
-            
-            # Text Labels over arcs
-            text = base.mark_text(radius=140).encode(
-                text=alt.Text("Total Score", format=".2f"),
-                order=alt.Order("Total Score", sort="descending"),
-                color=alt.value("black")
-            )
-            
-            st.markdown("**Leaderboard Chart (Votes + Criteria)**")
-            st.altair_chart(pie + text, use_container_width=True)
-            
-        else:
-            st.info("No candidates found.")
+            # Check if there are points to plot to prevent Altair from crashing on zero-value data
+            if chart_df["Total Score"].sum() > 0:
+                # Create Base Chart
+                base = alt.Chart(chart_df).encode(
+                    theta=alt.Theta("Total Score:Q", stack=True)
+                )
+                
+                # Pie Chart (Arcs)
+                pie = base.mark_arc(outerRadius=120).encode(
+                    color=alt.Color("Candidate:N"),
+                    order=alt.Order("Total Score:Q", sort="descending"),
+                    tooltip=[
+                        alt.Tooltip("Candidate:N"),
+                        alt.Tooltip("Total Score:Q", format=".2f"),
+                        alt.Tooltip("Vote Count:Q", title="Number of Votes"), 
+                        alt.Tooltip("Criteria:Q", format=".2f", title="Criteria Contribution")
+                    ]
+                )
+                
+                # Text Labels over arcs
+                text = base.mark_text(radius=140).encode(
+                    text=alt.Text("Total Score:Q", format=".2f"),
+                    order=alt.Order("Total Score:Q", sort="descending"),
+                    color=alt.value("black")
+                )
+                
+                st.markdown("**Leaderboard Chart (Votes + Criteria)**")
+                st.altair_chart(pie + text, use_container_width=True)
+            else:
+                st.info("Scores are currently zero; the chart will appear once votes or metrics are recorded.")
 
     # 4. CSV Download Button (Only if voting is closed)
     if not voting_is_open:
@@ -1539,5 +1507,5 @@ if __name__ == "__main__":
         render_teacher_page(teachers, students, metrics)
     elif page_to_render == 'admin':
         render_admin_page(settings, students, positions, votes, teachers, weights)
-    elif page_to_render == 'super_admin':  # NEW RENDER CALL
+    elif page_to_render == 'super_admin': 
         render_super_admin_page(settings, students, metrics)
