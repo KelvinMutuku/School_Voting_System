@@ -318,12 +318,19 @@ def import_backup(data):
         for name, value in data['weights'].items():
             cursor.execute("INSERT INTO weights (name, value) VALUES (?, ?)", (name, value))
         
-        # Insert Metrics (Including Locked)
+# Insert Metrics (Including Locked)
         for student_id, m in data['metrics'].items():
             locked_val = m.get('locked', 1) # Default to 1 (locked) if importing old backup to be safe
             cursor.execute(
                 "INSERT INTO metrics (student_id, academics, discipline, co_curricular, public_speaking, locked) VALUES (?, ?, ?, ?, ?, ?)",
-                (student_id, m['academics'], m['discipline'], m['co_curricular'], m['public_speaking'], int(locked_val))
+                (
+                    student_id, 
+                    m.get('academics', 0), 
+                    m.get('discipline', 0), 
+                    m.get('co_curricular', m.get('neatness', 0)), # Falls back to neatness if it exists, otherwise 0
+                    m.get('public_speaking', 0), 
+                    int(locked_val)
+                )
             )
         
         conn.commit()
