@@ -89,9 +89,7 @@ def init_db():
                 student_id TEXT PRIMARY KEY,
                 academics INTEGER DEFAULT 0,
                 discipline INTEGER DEFAULT 0,
-                neatness INTEGER DEFAULT 0,
-                flexibility INTEGER DEFAULT 0,
-                leadership INTEGER DEFAULT 0,
+                co_curricular INTEGER DEFAULT 0,
                 public_speaking INTEGER DEFAULT 0,
                 locked INTEGER DEFAULT 0, 
                 FOREIGN KEY (student_id) REFERENCES students (student_id)
@@ -1386,7 +1384,7 @@ def render_results_page(positions, votes, settings, weights, metrics):
             
             # Add to CSV string if needed
             if not voting_is_open:
-                 csv_lines.append(f"{position_name},{c_name},{vote_percentage:.2f},{m.get('academics')},{m.get('discipline')},{m.get('neatness')},{m.get('flexibility')},{m.get('leadership')},{m.get('public_speaking')},{final_score:.2f}")
+                 csv_lines.append(f"{position_name},{c_name},{vote_percentage:.2f},{m.get('academics', 0)},{m.get('discipline', 0)},{m.get('co_curricular', 0)},{m.get('public_speaking', 0)},{final_score:.2f}")
 
         # 3. Render Dataframe
         if tally_data:
