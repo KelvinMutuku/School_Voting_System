@@ -759,16 +759,24 @@ def render_super_admin_page(settings, students, metrics):
         
     st.markdown("---")
     
-    # --- MANAGE TEACHER VOTES (Override) ---
+# --- MANAGE TEACHER VOTES (Override) ---
     st.subheader("Manage Teacher Votes (Override)")
     st.info("As Super Admin, you can edit student metric scores even if the teacher has locked them.")
     
-    # Filter for finding a student
+    # Filter for finding a student (Now includes "All")
     col_grade, col_stream = st.columns(2)
-    filter_grade = col_grade.selectbox("Filter by Grade", [1,2,3,4,5,6,7, 8, 9, 10], key="sa_metrics_grade")
-    filter_stream = col_stream.selectbox("Filter by Stream", STREAMS, key="sa_metrics_stream")
+    grade_options = ["All"] + GRADES
+    stream_options = ["All"] + STREAMS
     
-    adm_students = [s for s in students if s['grade'] == filter_grade and s['student_class'] == filter_stream]
+    filter_grade = col_grade.selectbox("Filter by Grade", grade_options, key="sa_metrics_grade")
+    filter_stream = col_stream.selectbox("Filter by Stream", stream_options, key="sa_metrics_stream")
+    
+    # Apply filters dynamically
+    adm_students = students
+    if filter_grade != "All":
+        adm_students = [s for s in adm_students if s['grade'] == filter_grade]
+    if filter_stream != "All":
+        adm_students = [s for s in adm_students if s['student_class'] == filter_stream]
     
     if adm_students:
         student_opts = {f"{s['name']} ({s['student_id']})": s['student_id'] for s in adm_students}
@@ -803,15 +811,26 @@ def render_super_admin_page(settings, students, metrics):
                 if st.form_submit_button("Update Scores"):
                     new_lock_status = 0 if unlock_student else 1 
                     with sqlite3.connect(DB_FILE) as conn:
-                        conn.execute("""
-                            INSERT OR REPLACE INTO metrics (student_id, academics, discipline, co_curricular, public_speaking, locked)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """, (s_id, n_acad, n_disc, n_neat, n_speak, new_lock_status))
+                        cursor = conn.cursor()
+                        # Safe Update instead of REPLACE
+                        cursor.execute("SELECT 1 FROM metrics WHERE student_id = ?", (s_id,))
+                        if cursor.fetchone():
+                            cursor.execute("""
+                                UPDATE metrics 
+                                SET academics = ?, discipline = ?, co_curricular = ?, public_speaking = ?, locked = ?
+                                WHERE student_id = ?
+                            """, (n_acad, n_disc, n_neat, n_speak, new_lock_status, s_id))
+                        else:
+                            cursor.execute("""
+                                INSERT INTO metrics (student_id, academics, discipline, co_curricular, public_speaking, locked)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (s_id, n_acad, n_disc, n_neat, n_speak, new_lock_status))
                         conn.commit()
                     st.success("Scores updated successfully.")
+                    time.sleep(1)
                     st.rerun()
     else:
-        st.info("No students found in this class.")
+        st.info("No students found matching these filters.")
 
     st.markdown("---")
     
@@ -951,30 +970,38 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                 st.success(f"Position '{position_name}' removed.")
                 st.rerun()
     
-    with st.form("add_position_form"):
-        new_position_name = st.text_input("New Position Name")
-        grade_options = {0: "All Grades", 1: "Grade 1", 2: "Grade 2", 3: "Grade 3", 4: "Grade 4", 5: "Grade 5", 6: "Grade 6", 7: "Grade 7", 8: "Grade 8", 9: "Grade 9", 10: "Grade 10"}
-        selected_grade = st.selectbox("Assign to Grade", options=list(grade_options.keys()), format_func=lambda x: grade_options[x])
-        selected_stream = st.selectbox("Assign to Stream (optional)", options=[None] + STREAMS, format_func=lambda x: "None (Grade/School-wide)" if x is None else x)
-        
-        if st.form_submit_button("Add Position"):
-            if new_position_name:
-                try:
-                    with sqlite3.connect(DB_FILE) as conn:
-                        conn.execute("INSERT INTO positions (position_name, grade, student_class, candidates_json) VALUES (?, ?, ?, ?)",
-                                (new_position_name, selected_grade, selected_stream, json.dumps([])))
-                        conn.commit()
-                    st.success(f"Position '{new_position_name}' added.")
-                    st.rerun()
-                except sqlite3.IntegrityError:
-                    st.error("Position name already exists.")
-
-    st.markdown("---")
+        with st.form("add_position_form"):
+            new_position_name = st.text_input("New Position Name")
+            # Added 101, 102, 103 for the sections
+            grade_options = {
+                0: "All Grades (School-wide)", 
+                101: "Lower Primary (Grades 1-3)",
+                102: "Middle School (Grades 4-6)",
+                103: "Junior School (Grades 7-9)",
+                1: "Grade 1", 2: "Grade 2", 3: "Grade 3", 4: "Grade 4", 
+                5: "Grade 5", 6: "Grade 6", 7: "Grade 7", 8: "Grade 8", 
+                9: "Grade 9", 10: "Grade 10"
+            }
+            selected_grade = st.selectbox("Assign to Grade/Section", options=list(grade_options.keys()), format_func=lambda x: grade_options[x])
+            selected_stream = st.selectbox("Assign to Stream (optional)", options=[None] + STREAMS, format_func=lambda x: "None (Grade/School-wide)" if x is None else x)
+            
+            if st.form_submit_button("Add Position"):
+                if new_position_name:
+                    try:
+                        with sqlite3.connect(DB_FILE) as conn:
+                            conn.execute("INSERT INTO positions (position_name, grade, student_class, candidates_json) VALUES (?, ?, ?, ?)",
+                                    (new_position_name, selected_grade, selected_stream, json.dumps([])))
+                            conn.commit()
+                        st.success(f"Position '{new_position_name}' added.")
+                        st.rerun()
+                    except sqlite3.IntegrityError:
+                        st.error("Position name already exists.")
+                    except sqlite3.Error as e:
+                        st.error(f"Error adding position: {e}")
     
     # --- Manage Candidates ---
     st.subheader("Manage Candidates")
     all_position_names = sorted(list(positions.keys()))
-    
     
     if not all_position_names:
         st.warning("No positions created yet. Add a position above.")
@@ -1033,16 +1060,27 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
                         else:
                             st.warning("Already added.")
                 else:
-                    # Single Candidate Logic
+                   # Single Candidate Logic
                     s = next((s for s in students if s['student_id'] == candidate_id), None)
                     if s:
+                        # Helper for section validation
+                        def is_grade_match(s_grade, p_grade):
+                            if p_grade == 0: return True
+                            if p_grade == 101 and s_grade in [1, 2, 3]: return True
+                            if p_grade == 102 and s_grade in [4, 5, 6]: return True
+                            if p_grade == 103 and s_grade in [7, 8, 9]: return True
+                            return s_grade == p_grade
+
+                        section_map = {101: "Lower Primary (1-3)", 102: "Middle School (4-6)", 103: "Junior School (7-9)"}
+                        
                         # Validations
                         if 'Girl Representative' in selected_position_name and s['gender'] != 'Female':
                             st.error("Must be Female.")
-                        elif student_class and (s['student_class'] != student_class or s['grade'] != grade):
-                            st.error(f"Must be Grade {grade} {student_class}.")
-                        elif grade != 0 and s['grade'] != grade:
-                            st.error(f"Must be Grade {grade}.")
+                        elif not is_grade_match(s['grade'], grade):
+                            req_grade_str = section_map.get(grade, f"Grade {grade}") if grade != 0 else "Any Grade"
+                            st.error(f"Candidate is Grade {s['grade']}. Must be in {req_grade_str}.")
+                        elif student_class and s['student_class'] != student_class:
+                            st.error(f"Must be in {student_class} stream.")
                         else:
                             new_cand = {'student_id': s['student_id'], 'name': s['name']}
                             if new_cand not in current_candidates:
@@ -1234,22 +1272,27 @@ def render_voting_page(students, positions, settings):
                 position_grade = position_data['grade']
                 position_stream = position_data['student_class']
                 
-                # Filter positions: school-wide (grade=0), grade-specific (same grade), or stream-specific (same grade and stream)
-                if (position_grade == 0 and position_stream is None) or \
-                   (position_grade == voter_grade and position_stream is None) or \
-                   (position_grade == voter_grade and position_stream == voter_stream):
-                    candidates = position_data['candidates']
-                    
-                    # --- UPDATE: Removed the filter "if c['student_id'] != voter['student_id']" ---
-                    # Now candidates can see their own name in the list.
-                    candidate_names = [c['name'] for c in candidates] 
-                    
-                    if not candidate_names:
-                        st.info(f"No eligible candidates for {position_name}.")
-                    else:
-                        selected_candidate = st.selectbox(f"Vote for {position_name}", [""] + candidate_names, key=position_name)
-                        if selected_candidate:
-                            selected_votes[position_name] = selected_candidate
+                # Helper to determine if voter sees this position
+                def is_voter_eligible(v_grade, p_grade):
+                    if p_grade == 0: return True
+                    if p_grade == 101 and v_grade in [1, 2, 3]: return True
+                    if p_grade == 102 and v_grade in [4, 5, 6]: return True
+                    if p_grade == 103 and v_grade in [7, 8, 9]: return True
+                    return v_grade == p_grade
+                
+                # Filter positions: school-wide, section-specific, grade-specific, or stream-specific
+                if is_voter_eligible(voter_grade, position_grade):
+                    if position_stream is None or position_stream == voter_stream:
+                        candidates = position_data['candidates']
+                        
+                        candidate_names = [c['name'] for c in candidates] 
+                        
+                        if not candidate_names:
+                            st.info(f"No eligible candidates for {position_name}.")
+                        else:
+                            selected_candidate = st.selectbox(f"Vote for {position_name}", [""] + candidate_names, key=position_name)
+                            if selected_candidate:
+                                selected_votes[position_name] = selected_candidate
             if st.form_submit_button("Submit Vote"):
                 try:
                     votes_json = json.dumps(selected_votes)
