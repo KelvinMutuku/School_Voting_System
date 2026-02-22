@@ -839,6 +839,26 @@ def render_super_admin_page(settings, students, metrics):
     # --- RESET VOTES (Super Admin Only) ---
     st.markdown("---")
     st.subheader("📊 Election Management")
+    # --- RESET METRICS (Super Admin Only) ---
+    with st.expander("Reset All Student Metrics"):
+        st.warning("⚠️ **DANGER ZONE**: This action will permanently delete all teacher-entered metric scores, reset them to zero, and unlock them.")
+        
+        # Double confirmation to prevent accidents
+        confirm_metrics_text = st.text_input("Type 'RESET METRICS' to confirm", key="sa_reset_metrics_confirm_text")
+        confirm_metrics_check = st.checkbox("I understand that this cannot be undone", key="sa_reset_metrics_checkbox")
+        
+        if st.button("Purge All Metrics", type="primary", disabled=(confirm_metrics_text != "RESET METRICS" or not confirm_metrics_check)):
+            try:
+                with sqlite3.connect(DB_FILE) as conn:
+                    cursor = conn.cursor()
+                    # Clearing the metrics table effectively resets all scores to 0 and unlocks them
+                    cursor.execute("DELETE FROM metrics")
+                    conn.commit()
+                st.success("Metrics reset successful. All scores are now zeroed and unlocked for teachers.")
+                time.sleep(2)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error during metrics reset: {e}")
     with st.expander("Reset All Election Votes"):
         st.warning("⚠️ **DANGER ZONE**: This action will permanently delete all cast votes and reset the voting status for every student.")
         
@@ -1019,15 +1039,20 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
         else:
             st.info("No candidates yet.")
 
-        # --- SINGLE FORM FOR CANDIDATES ---
+# --- SINGLE FORM FOR CANDIDATES ---
         with st.form("manage_candidates_form"):
-            is_joint_ticket = "President & Deputy" in selected_position_name
+            # Update this line to look for both President and Governor joint tickets
+            is_joint_ticket = "President & Deputy" in selected_position_name or "Governor & Deputy" in selected_position_name
             
             # 1. Inputs
             if is_joint_ticket:
-                st.info("Joint Ticket: Enter IDs for both President and Deputy.")
+                st.info("Joint Ticket: Enter IDs for both the lead candidate and their deputy.")
                 c1, c2 = st.columns(2)
-                id_pres = c1.text_input("President ID", key="pres_input").strip()
+                
+                # Dynamically change the label based on the position name
+                main_title = "Governor ID" if "Governor" in selected_position_name else "President ID"
+                
+                id_pres = c1.text_input(main_title, key="pres_input").strip()
                 id_dep = c2.text_input("Deputy ID", key="dep_input").strip()
                 candidate_id = f"{id_pres}+{id_dep}"
             else:
