@@ -8,9 +8,9 @@ import os
 import re
 
 # --- CONFIGURATION ---
-input_folder = 'kisc-athi-river' 
+input_folder = 'kisc-syokimau' 
 output_filename = 'full_school_backup.json'
-keys_filename = 'access_keys.txt'
+keys_filename = 'access_keys-sykimau.txt'
 STUDENT_DEFAULT_PASSWORD = "123456"
 
 def generate_password(length=6, digits_only=False):
@@ -42,11 +42,13 @@ for file_path in excel_files:
         
         # Standardize column names based on your file: 'Student Name', 'Reg No', 'Stream'
         df = df.rename(columns={
-            'Reg No': 'Adm No.', 
-            'ADM': 'Adm No.',
-            'Student Name': 'Student Name',
-            'NAMES': 'Student Name'
-        })
+    'Reg No': 'Adm No.', 
+    'ADM': 'Adm No.',
+    'ADM NO': 'Adm No.',    # Add this line
+    'Student Name': 'Student Name',
+    'NAMES': 'Student Name',
+    'NAME': 'Student Name'  # Add this line
+})
 
         for _, row in df.iterrows():
             adm = str(row.get('Adm No.', '')).strip()
@@ -133,4 +135,6 @@ with open(keys_filename, 'w') as f:
     for user, pwd in teacher_passwords_export.items():
         f.write(f"{user}: {pwd}\n")
 
+print("Columns detected in file:")
+print(df.columns.tolist())
 print(f"✅ Success! Generated data for {len(students_export)} students.")

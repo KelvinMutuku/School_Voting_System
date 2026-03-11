@@ -345,7 +345,7 @@ def render_about_page():
     * **Student Votes:** 60%
     * **Academics:** 10%
     * **Discipline:** 10%
-    * **Public Speaking:** 10%
+    * **Public Speaking & Leadership:** 10%
     * **co_curricular:** 10%
     ### How it works
     * Students register with their ID and password, then vote by position. Some positions are school-wide, while others (like Class Prefect) are restricted to voters of a specific grade and stream.
@@ -542,7 +542,7 @@ def render_teacher_page(teachers, students, metrics):
             cols[1].write("Academics")
             cols[2].write("Discipline")
             cols[3].write("co_curricular")
-            cols[4].write("Speaking")
+            cols[4].write("Public Speaking & Leadership")
             
             any_unlocked = False
 
@@ -563,7 +563,7 @@ def render_teacher_page(teachers, students, metrics):
                 academics = cols[1].number_input("Acad", 0, 100, student_metrics.get('academics', 0), key=f"{s['student_id']}_acad", label_visibility="collapsed", disabled=disabled)
                 discipline = cols[2].number_input("Disc", 0, 100, student_metrics.get('discipline', 0), key=f"{s['student_id']}_disc", label_visibility="collapsed", disabled=disabled)
                 neat = cols[3].number_input("co-curricular", 0, 100, student_metrics.get('co_curricular', 0), key=f"{s['student_id']}_neat", label_visibility="collapsed", disabled=disabled)
-                speaking = cols[4].number_input("Speak", 0, 100, student_metrics.get('public_speaking', 0), key=f"{s['student_id']}_speak", label_visibility="collapsed", disabled=disabled)
+                speaking = cols[4].number_input("Public Speaking & Leadership", 0, 100, student_metrics.get('public_speaking', 0), key=f"{s['student_id']}_speak", label_visibility="collapsed", disabled=disabled)
 
                 if not is_locked:
                     metric_inputs[s['student_id']] = {
@@ -1176,7 +1176,7 @@ def render_admin_page(settings, students, positions, votes, teachers, weights):
     # --- Manage Weights ---
     st.subheader("Manage Weights (Must total 100%)")
     with st.form("weights_form"):
-        allowed = ['student_votes', 'academics', 'discipline', 'co_curricular', 'public_speaking']
+        allowed = ['student_votes', 'academics', 'discipline', 'co_curricular', 'public_speaking  & Leadership']
         current_w = {k: weights.get(k, 0) for k in allowed}
         new_w = {}
         total = 0
@@ -1388,7 +1388,7 @@ def render_results_page(positions, votes, settings, weights, metrics):
         st.subheader("Final Computed Results")
 
     # Prepare CSV Header
-    csv_lines = ["Position,Candidate,Student Votes,Academics,Discipline,co-curricular,Public Speaking,Final Score"]
+    csv_lines = ["Position,Candidate,Student Votes,Academics,Discipline,co-curricular,Public Speaking & Leadership,Final Score"]
 
     for position_name, position_data in positions.items():
         st.markdown(f"### {position_name}")
@@ -1409,9 +1409,13 @@ def render_results_page(positions, votes, settings, weights, metrics):
                     vote_counts[candidate_obj['student_id']] += 1
                     total_votes += 1
         
-        # 2. Build Table Data
+# 2. Build Table Data (Updated for 100% normalization)
         tally_data = []
-        chart_rows = [] # List for the Pie Chart
+        chart_rows = [] 
+        
+        # --- Pass 1: Calculate raw scores and find the total sum ---
+        raw_candidate_data = []
+        total_raw_score = 0
         
         for candidate in candidates:
             c_id = candidate['student_id']
@@ -1424,14 +1428,30 @@ def render_results_page(positions, votes, settings, weights, metrics):
             # Get Metrics
             m = get_candidate_metrics(c_id)
             
-            # Calculate Final Score
-            final_score = calculate_final_score(m, vote_percentage)
+            # Calculate Final Score (Raw)
+            raw_final_score = calculate_final_score(m, vote_percentage)
+            total_raw_score += raw_final_score
             
-            # --- PREPARE CHART DATA (Breakdown) ---
-            # 1. Calculate Weighted Vote Score
-            vote_score_contribution = (vote_percentage * weights.get('student_votes', 0)) / 100.0
+            raw_candidate_data.append({
+                'c_id': c_id,
+                'c_name': c_name,
+                'votes_received': votes_received,
+                'vote_percentage': vote_percentage,
+                'm': m,
+                'raw_final_score': raw_final_score
+            })
             
-            # 2. Calculate Weighted Criteria Score
+        # --- Pass 2: Normalize to 100% and build rows ---
+        for cand_data in raw_candidate_data:
+            c_name = cand_data['c_name']
+            vote_percentage = cand_data['vote_percentage']
+            votes_received = cand_data['votes_received']
+            m = cand_data['m']
+            
+            # This is the magic math that makes them all add up to 100%
+            normalized_score = (cand_data['raw_final_score'] / total_raw_score * 100) if total_raw_score > 0 else 0
+            
+            # Criteria sum for chart breakdown
             criteria_sum = (
                 (m.get('academics', 0) * weights.get('academics', 0)) +
                 (m.get('discipline', 0) * weights.get('discipline', 0)) +
@@ -1441,8 +1461,8 @@ def render_results_page(positions, votes, settings, weights, metrics):
             
             chart_rows.append({
                 "Candidate": c_name,
-                "Total Score": final_score,
-                "Vote Count": votes_received,  # <--- ADDED: Raw vote count
+                "Total Score": normalized_score, # Using the normalized score
+                "Vote Count": votes_received,  
                 "Criteria": criteria_sum
             })
 
@@ -1453,14 +1473,13 @@ def render_results_page(positions, votes, settings, weights, metrics):
                 'Academics': f"{m.get('academics', 0):.1f}",
                 'Discipline': f"{m.get('discipline', 0):.1f}",
                 'co-curricular': f"{m.get('co_curricular', 0):.1f}",
-                'Public Speaking': f"{m.get('public_speaking', 0):.1f}",
-                'Final Score': final_score
+                'Public Speaking & Leadership': f"{m.get('public_speaking', 0):.1f}",
+                'Final Score': normalized_score # Using the normalized score
             })
             
             # Add to CSV string if needed
             if not voting_is_open:
-                 csv_lines.append(f"{position_name},{c_name},{vote_percentage:.2f},{m.get('academics', 0)},{m.get('discipline', 0)},{m.get('co_curricular', 0)},{m.get('public_speaking', 0)},{final_score:.2f}")
-
+                 csv_lines.append(f"{position_name},{c_name},{vote_percentage:.2f},{m.get('academics', 0)},{m.get('discipline', 0)},{m.get('co_curricular', 0)},{m.get('public_speaking', 0)},{normalized_score:.2f}")
         # 3. Render Dataframe
         if tally_data:
             # Sort by Final Score (Descending)
@@ -1471,12 +1490,12 @@ def render_results_page(positions, votes, settings, weights, metrics):
             leader_score = tally_df.iloc[0]['Final Score']
             
             # Format the float score for display
-            tally_df['Final Score'] = tally_df['Final Score'].map(lambda x: f"{x:.2f}")
+            tally_df['Final Score'] = tally_df['Final Score'].map(lambda x: f"{x:.2f}%")
 
             if voting_is_open:
-                st.success(f"**Leading: {leader_name}** with a score of **{leader_score:.2f}**")
+                st.success(f"**Leading: {leader_name}** with a score of **{leader_score:.2f}%**")
             else:
-                st.success(f"**Winner: {leader_name}** with a score of **{leader_score:.2f}**")
+                st.success(f"**Winner: {leader_name}** with a score of **{leader_score:.2f}%**")
             
             st.dataframe(tally_df)
 
